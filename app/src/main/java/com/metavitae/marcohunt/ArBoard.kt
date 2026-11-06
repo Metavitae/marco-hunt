@@ -61,7 +61,10 @@ class ArState {
     companion object {
         /** True when Google AR is installed and supported on this phone. */
         fun available(ctx: Context): Boolean = try {
-            val a = ArCoreApk.getInstance().checkAvailability(ctx)
+            // the first answer can be "still checking": ask again a few times (at most about half a second)
+            var a = ArCoreApk.getInstance().checkAvailability(ctx)
+            var tries = 0
+            while (a.isTransient && tries < 4) { Thread.sleep(120); a = ArCoreApk.getInstance().checkAvailability(ctx); tries++ }
             a == ArCoreApk.Availability.SUPPORTED_INSTALLED
         } catch (e: Throwable) { false }
     }

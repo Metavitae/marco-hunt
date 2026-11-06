@@ -1,0 +1,2 @@
+Marco Hunt tests 2026-11-06_15-04-25 · Xiaomi 2312FPCA6G · Android 16 · app 0.10
+F facts: board mode camera-lite, gyroscope yes, camera not given · DONE

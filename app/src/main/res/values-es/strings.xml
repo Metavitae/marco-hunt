@@ -146,4 +146,6 @@
     <string name="sound_on">🔈 Sonido</string>
     <string name="sound_off">🔇 Silencio</string>
     <string name="widget_line">Recorre el mapa antiguo. Toca para cazar.</string>
+    <string name="camp_continue">⛺ Seguir la caza</string>
+    <string name="camp_resumed">Se levanta el campamento: la caza sigue donde la dejaste.</string>
 </resources>

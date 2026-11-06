@@ -37,6 +37,7 @@ public final class Sim {
         if (part.equals("all") || part.equals("dice")) diceTable();
         if (part.equals("all") || part.equals("T")) turnLimitTable();
         if (part.equals("all") || part.equals("detail")) details();
+        if (part.equals("lengths")) lengths();
         System.out.printf("%n(done in %.0f s, seed base %d, %d games per setting)%n", (System.currentTimeMillis() - t0) / 1000.0, seedBase, GAMES);
     }
 
@@ -262,6 +263,34 @@ public final class Sim {
         Rules twoNoAcc = base(n, 2, d[0], d[1]); twoNoAcc.accusations = false;
         List<Rec> two2 = run(twoNoAcc, null, 98_001);
         System.out.printf("Same, accusations off for 2 players: median rounds %s, Marco wins at T=%d: %s%n", fmtRound(quantileRound(two2, 0.5)), T, pct(marcoWin(two2, T)));
+    }
+
+    /** Game lengths (Chat, Nov 6): Quick ~20, Standard ~45, Expedition 60-90 minutes, walk mode at 30 s a turn. */
+    static void lengths() {
+        System.out.println("## Game lengths: the board and die whose median game (walk mode, 30 s a turn, Marco wins 3 in 10) is nearest each target");
+        System.out.println("| Length (target) | Players | Board | Die | T (rounds) | Median minutes | 1 in 4 games longer than |");
+        System.out.println("|---|---|---|---|---|---|---|");
+        int[] players = {4, 6};
+        String[] names = {"Quick (20)", "Standard (45)", "Expedition (75)"};
+        double[] target = {20, 45, 75};
+        for (int np : players) {
+            // measure every board x die once
+            java.util.List<double[]> rows = new java.util.ArrayList<>();
+            for (int n : SIZES) for (int[] d : DICE) {
+                List<Rec> recs = run(base(n, np, d[0], d[1]), null, 70_000 + n * 100 + d[0] * 3 + d[1] + np * 7);
+                int T = tFor(recs, 0.30);
+                if (T == Integer.MAX_VALUE) continue;
+                double med = medianMinutes(recs, T, 30, true);
+                double[] m = recs.stream().mapToDouble(x -> { int L = Math.min(x.found, T); return ((double) L * x.players * 30 + x.stepsAt(L)) / 60.0; }).sorted().toArray();
+                rows.add(new double[]{n, d[0], d[1], T, med, m[(int) (m.length * 0.75)]});
+            }
+            for (int k = 0; k < 3; k++) {
+                double[] best = null;
+                for (double[] r : rows) if (best == null || Math.abs(r[4] - target[k]) < Math.abs(best[4] - target[k])) best = r;
+                System.out.printf("| %s | %d | %.0fx%.0f | %s | %.0f | %.0f | %.0f |%n", names[k], np, best[0], best[0],
+                    best[2] == 1 ? "d" + (int) best[1] : "2d" + (int) best[1], best[3], best[4], best[5]);
+            }
+        }
     }
 
     interface IntF { int f(Rec r); }

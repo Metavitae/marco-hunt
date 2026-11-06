@@ -22,8 +22,12 @@ class MainActivity : Activity() {
 
     override fun attachBaseContext(base: Context) = super.attachBaseContext(Lang.wrap(base))
 
+    override fun onResume() { super.onResume(); if (shownCamp != Camp.exists(this)) recreate() }
+    private var shownCamp = false
+
     override fun onCreate(saved: Bundle?) {
         super.onCreate(saved)
+        shownCamp = Camp.exists(this)
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
@@ -41,6 +45,9 @@ class MainActivity : Activity() {
         col.addView(TextView(this).apply {
             text = getString(R.string.tagline); textSize = 17f; setTextColor(Art.INK)
             typeface = Typeface.SERIF; gravity = Gravity.CENTER; setPadding(0, dp(8), 0, dp(32))
+        })
+        if (Camp.exists(this)) col.addView(button(R.string.camp_continue) {
+            startActivity(Intent(this, GameActivity::class.java).putExtra("resume", true))
         })
         col.addView(button(R.string.solo) { soloSetup(false) })
         col.addView(button(R.string.tutorial) { startGame(0, 10, 0, 3, true) })

@@ -6,6 +6,10 @@ public final class Rng {
 
     public Rng(long seed) { s = seed == 0 ? 0x9E3779B97F4A7C15L : seed; for (int i = 0; i < 4; i++) next(); }
 
+    /** Camp save: the generator's whole state. */
+    public long state() { return s; }
+    public void setState(long v) { s = v; }
+
     public long next() {
         s ^= s >>> 12; s ^= s << 25; s ^= s >>> 27;
         return s * 0x2545F4914F6CDD1DL;

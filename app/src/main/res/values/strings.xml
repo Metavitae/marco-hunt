@@ -146,4 +146,6 @@
     <string name="sound_on">🔈 Sound</string>
     <string name="sound_off">🔇 Quiet</string>
     <string name="widget_line">Walk the old map. Tap to hunt.</string>
+    <string name="camp_continue">⛺ Continue the hunt</string>
+    <string name="camp_resumed">The camp is struck: the hunt goes on where you left it.</string>
 </resources>

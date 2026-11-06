@@ -11,8 +11,8 @@ android {
         applicationId = "com.metavitae.marcohunt"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.10"
+        versionCode = 11
+        versionName = "0.11"
     }
 
     // Test-only key (not a release key) kept in the repo so every CI build can

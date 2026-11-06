@@ -1,0 +1,2 @@
+Marco Hunt tests 2026-11-06_15-04-30 · OnePlus KB2007 · Android 14 · app 0.10
+F facts: board mode real AR, gyroscope yes, camera given · DONE

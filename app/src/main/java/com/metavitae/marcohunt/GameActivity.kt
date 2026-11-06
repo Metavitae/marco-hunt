@@ -19,6 +19,7 @@ import com.metavitae.marcohunt.engine.Ai
 import com.metavitae.marcohunt.engine.Game
 import com.metavitae.marcohunt.engine.Player
 import com.metavitae.marcohunt.engine.Rules
+import com.metavitae.marcohunt.engine.Save
 import com.metavitae.marcohunt.engine.Types.Band
 import com.metavitae.marcohunt.engine.Types.Cls
 import com.metavitae.marcohunt.engine.Types.Content
@@ -79,7 +80,9 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         tutorial = intent.getBooleanExtra("tutorial", false)
         Signal.init(this)
         if (tutorial) level = 0
-        newGame(intent.getIntExtra("cls", 0), intent.getIntExtra("n", 10), intent.getIntExtra("rivals", 3))
+        if (!(intent.getBooleanExtra("resume", false) && resumeCamp())) {
+            newGame(intent.getIntExtra("cls", 0), intent.getIntExtra("n", 10), intent.getIntExtra("rivals", 3))
+        }
         buildUi()
         coachTip(1, R.string.t1)
         refresh()
@@ -476,6 +479,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     private fun showResult() {
         if (finished) return
         finished = true
+        Camp.clear(this)
         val m = g.marco
         val head = when {
             g.winBy == WinBy.LANDING || g.winBy == WinBy.ACCUSATION ->
@@ -618,7 +622,44 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         endHumanTurn()
     }
 
-    override fun onPause() { super.onPause(); camView?.stop(); arView?.pauseAr() }
+    override fun onPause() {
+        super.onPause(); camView?.stop(); arView?.pauseAr()
+        if (!finished && !g.over) Camp.write(this, Save.write(g, ai) + uiState())
+    }
+
+    // ------------------------------------------------------------------ camp save (pause today, continue tomorrow)
+
+    private fun uiState(): String {
+        val sb = StringBuilder()
+        sb.append("ui.level=").append(level).append('\n').append("ui.tutorial=").append(tutorial).append('\n')
+        sb.append("ui.band=").append(lastBand?.ordinal ?: -1).append('\n').append("ui.seen=").append(signalsSeen).append('\n')
+        sb.append("ui.proven=").append(proven.joinToString(",")).append('\n')
+        sb.append("ui.fits=").append(fits.entries.joinToString(",") { "${it.key}:${if (it.value) 1 else 0}" }).append('\n')
+        sb.append("ui.lines=").append(lines.takeLast(6).joinToString("\u0001").replace("\n", " ")).append('\n')
+        return sb.toString()
+    }
+
+    private fun resumeCamp(): Boolean {
+        val text = Camp.read(this) ?: return false
+        return try {
+            val o = Save.read(text)
+            g = o[0] as Game; ai = o[1] as Ai
+            me = g.players[0]
+            g.listeners.add(this)
+            val ui = HashMap<String, String>()
+            for (line in text.split("\n")) if (line.startsWith("ui.")) { val i = line.indexOf('='); ui[line.substring(3, i)] = line.substring(i + 1) }
+            level = ui["level"]?.toIntOrNull() ?: level; tutorial = ui["tutorial"] == "true"
+            val b = ui["band"]?.toIntOrNull() ?: -1; lastBand = if (b >= 0) Band.values()[b] else null
+            signalsSeen = ui["seen"]?.toIntOrNull() ?: 0
+            ui["proven"]?.split(",")?.mapNotNull { it.toIntOrNull() }?.let { proven.addAll(it) }
+            ui["fits"]?.split(",")?.forEach { kv -> val p = kv.split(":"); if (p.size == 2) fits[p[0].toInt()] = p[1] == "1" }
+            ui["lines"]?.split("\u0001")?.filter { it.isNotBlank() }?.let { lines.addAll(it) }
+            lines.add(getString(R.string.camp_resumed))
+            // a turn that was already rolled stays open
+            if (g.current().human && g.moveRoll > 0 && !g.moved) { turnOpen = true; mode = Mode.MOVE }
+            true
+        } catch (e: Exception) { Camp.clear(this); false }
+    }
     override fun onResume() {
         super.onResume()
         if (!cameraOn) return

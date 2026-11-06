@@ -25,7 +25,7 @@ public final class Ai implements Game.Listener {
     }
 
     private final Game g;
-    private final Brain[] brains;
+    final Brain[] brains;
     /** Cunning 0..1 (difficulty): chance that an AI traveller uses the clever move instead of a plain one. */
     public double cunning = 1.0;
 

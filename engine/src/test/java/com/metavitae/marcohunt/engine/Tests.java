@@ -44,6 +44,7 @@ public final class Tests {
         thousandGames();
         handCheckTinyBoard();
         riddlePlacement();
+        campSave();
         System.out.println("tests passed: " + pass + ", failed: " + fail);
         if (fail > 0) System.exit(1);
     }
@@ -328,6 +329,32 @@ public final class Tests {
         }
         check(broken == 0, "1000 AI games keep every rule (" + broken + " broke)");
         check(crashed == 0, "1000 AI games without a crash (" + crashed + " crashed)");
+    }
+
+    /** Camp save: save in the middle of a game, load it, and both copies finish exactly the same way. */
+    static void campSave() {
+        int same = 0, total = 0;
+        Kind[] ks = Kind.values();
+        for (long seed = 1; seed <= 60; seed++) {
+            Rules r = new Rules(); r.n = new int[]{10, 15, 20}[(int) (seed % 3)]; r.players = 3 + (int) (seed % 5); r.maxRounds = 120;
+            Game a = new Game(r, seed);
+            Ai aiA = new Ai(a);
+            for (Player p : a.players) p.kind = ks[(int) ((seed + p.id) % ks.length)];
+            int stop = 2 + (int) (seed % 6);
+            while (!a.over && a.round <= stop) { Player p = a.current(); if (a.beginTurn()) aiA.playTurn(p); }
+            if (a.over) continue;
+            String text = Save.write(a, aiA);
+            Object[] loaded = Save.read(text);
+            Game b = (Game) loaded[0]; Ai aiB = (Ai) loaded[1];
+            check(Save.write(b, aiB).equals(text), "save, load, save again gives the same text (seed " + seed + ")");
+            aiA.playToEnd(); aiB.playToEnd();
+            total++;
+            String ea = a.winBy + "/" + a.round + "/" + (a.finder == null ? -1 : a.finder.id) + "/" + a.fights + "/" + a.totalSteps;
+            String eb = b.winBy + "/" + b.round + "/" + (b.finder == null ? -1 : b.finder.id) + "/" + b.fights + "/" + b.totalSteps;
+            if (ea.equals(eb)) same++;
+            check(b.checkInvariants() == null, "loaded game keeps every rule");
+        }
+        check(total > 20 && same == total, "a loaded game continues exactly as the original (" + same + "/" + total + ")");
     }
 
     /** Randomizing rule: layouts differ per seed; every (landmark, mark type) pair is unique; marks sit nearest their own landmark. */

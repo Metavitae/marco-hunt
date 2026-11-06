@@ -1,0 +1,14 @@
+fact,value
+phone,Xiaomi 2312FPCA6G
+android,16
+app,0.10
+google_ar,no
+google_ar_detail,UNKNOWN_CHECKING
+board_mode,camera-lite
+gyroscope,yes
+rotation_vector,yes
+game_rotation_vector,yes
+compass,yes
+light_sensor,yes
+camera_permission,not given
+screen,1080x2159

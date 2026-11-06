@@ -1,0 +1,14 @@
+fact,value
+phone,OnePlus KB2007
+android,14
+app,0.10
+google_ar,yes
+google_ar_detail,SUPPORTED_INSTALLED
+board_mode,real AR
+gyroscope,yes
+rotation_vector,yes
+game_rotation_vector,yes
+compass,yes
+light_sensor,yes
+camera_permission,given
+screen,1080x2165

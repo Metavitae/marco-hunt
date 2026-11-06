@@ -66,14 +66,14 @@ public final class Game {
     public boolean marcoRevealed = false;
     public boolean oracleKnown = false;
     public final List<Echo> echoes = new ArrayList<>();
-    private final boolean[] teamAskedOracle = new boolean[16];
+    final boolean[] teamAskedOracle = new boolean[16];
 
     // per-turn state
-    private int moveRoll = 0, moveExtra = 0;
-    private double budget = 0;
-    private int used = 0;
-    private boolean together = false;
-    private boolean moved = false;
+    int moveRoll = 0, moveExtra = 0;
+    double budget = 0;
+    int used = 0;
+    boolean together = false;
+    boolean moved = false;
 
     // statistics
     public int fights = 0, wrongAccusations = 0, echoesSet = 0, echoesDetected = 0, perilsHit = 0, perilsBlocked = 0;
@@ -606,7 +606,7 @@ public final class Game {
     }
 
     /** Marco casts one item from his hand into an empty, unoccupied slot (free, once per turn). */
-    private int lastCastRound = -1;
+    int lastCastRound = -1;
     public void cast(Player m, int square, Content item) {
         needCurrent(m);
         if (!m.isMarco) throw new IllegalStateException("only Marco casts");
