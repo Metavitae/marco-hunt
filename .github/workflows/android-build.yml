@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,8 +36,12 @@ jobs:
       - name: Build APK
         run: gradle assembleDebug --no-daemon
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: marcohunt-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+      # A GitHub Release per build (artifact storage on this account is full and shared by all projects).
+      - name: Publish APK as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk MarcoHunt-0.1-b${{ github.run_number }}.apk
+          gh release create "b${{ github.run_number }}" MarcoHunt-0.1-b${{ github.run_number }}.apk \
+            --prerelease --title "Marco Hunt 0.1 build ${{ github.run_number }}" \
+            --notes "Test build (test-only signing key). Commit ${{ github.sha }}."
