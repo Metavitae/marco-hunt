@@ -122,5 +122,5 @@
     <string name="long_press">Long-press a square to read the map.</string>
     <string name="dedication_title">A riddle from the Khan\'s astrologers</string>
     <string name="dedication">We read the stars for you all night, and they puzzled us. They spoke of a traveller born on a day that is not the birthday — and yet it counts. The traveller asked for a game, and the game came wrapped in parchment with a red bow. The traveller walks inside maps no one has drawn yet, and hunts a man who hides among friends. Who is this traveller? We argued until dawn. Then we wrote one word on the scroll, and it was the name of whoever now holds this phone. Happy birthday, traveller. The stars insist it counts.</string>
-    <string name="art_credit">Paintings made with Canva AI (owned by the maker under Canva's AI Product Terms).</string>
+    <string name="art_credit">Paintings made with Canva AI (owned by the maker under Canva\'s AI Product Terms).</string>
 </resources>
