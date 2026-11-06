@@ -1,0 +1,233 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Kithe presents Marco Hunt</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0d1730;font-family:Georgia,'Noto Serif',serif;-webkit-user-select:none;user-select:none}
+  canvas{display:block}
+  #ui{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .t{opacity:0;transition:opacity .9s ease;letter-spacing:.08em}
+  #presents{color:#e9d9a8;font-size:5.2vw;margin-top:46vh;letter-spacing:.45em}
+  #title{position:fixed;top:56vh;left:0;right:0;color:#5a3a1e;font-size:13vw;font-weight:bold;letter-spacing:.02em}
+  #tag{position:fixed;top:72vh;left:8vw;right:8vw;color:#5a3a1e;font-size:4.4vw;font-style:italic;letter-spacing:.02em}
+  #hint{position:fixed;bottom:12vh;left:0;right:0;color:#5a3a1e;font-size:5vw;letter-spacing:.1em}
+  #skip{position:fixed;bottom:4vh;left:0;right:0;color:#a89a7a;font-size:3.4vw;letter-spacing:.05em}
+</style></head>
+<body>
+<div id="ui">
+  <div id="presents" class="t">KITHE PRESENTS</div>
+  <div id="title" class="t">Marco Hunt</div>
+  <div id="tag" class="t"></div>
+  <div id="hint" class="t"></div>
+  <div id="skip" class="t"></div>
+</div>
+<script src="three.min.js"></script>
+<script>
+"use strict";
+const Q = new URLSearchParams(location.search);
+const UNWRAP = Q.get('unwrap') === '1';
+const ES = Q.get('lang') === 'es';
+const TXT = ES
+  ? {tag:'Camina dentro de un mapa antiguo y caza al viajero escondido entre ustedes.', hint:'Toca el moño', skip:'toca para saltar', presents:'KITHE PRESENTA'}
+  : {tag:'Walk inside an old map and hunt the traveller hidden among you.', hint:'Tap the bow', skip:'tap to skip', presents:'KITHE PRESENTS'};
+document.getElementById('tag').textContent = TXT.tag;
+document.getElementById('hint').textContent = TXT.hint;
+document.getElementById('skip').textContent = TXT.skip;
+document.getElementById('presents').textContent = TXT.presents;
+const $ = id => document.getElementById(id);
+const show = (id, on) => { $(id).style.opacity = on ? 1 : 0; };
+function done(){ try { Android.done(); } catch(e) {} }
+
+/* ---------------- sound: an original little tune, made here (no files) ---------------- */
+let AC = null;
+function audio(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(AC && AC.state==='suspended') AC.resume(); return AC; }
+function pluck(freq, t0, dur, vol){
+  const a = audio(); if(!a) return;
+  const t = a.currentTime + t0;
+  const o = a.createOscillator(), o2 = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter();
+  o.type = 'triangle'; o2.type = 'sine'; o.frequency.value = freq; o2.frequency.value = freq * 2.005;
+  f.type = 'lowpass'; f.frequency.setValueAtTime(3200, t); f.frequency.exponentialRampToValueAtTime(700, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(f); o2.connect(f); f.connect(g); g.connect(a.destination);
+  o.start(t); o2.start(t); o.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
+}
+function drone(freq, t0, dur, vol){
+  const a = audio(); if(!a) return;
+  const t = a.currentTime + t0;
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.8); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + 0.1);
+}
+// D major pentatonic, a happy "silk road" figure
+const N = {D4:293.66,E4:329.63,Fs4:369.99,A4:440,B4:493.88,D5:587.33,E5:659.25,Fs5:739.99,A5:880};
+function tuneStars(){ // while the stars light up
+  const seq = ['D4','Fs4','A4','B4','A4','D5','E5','Fs5'];
+  seq.forEach((n,i) => pluck(N[n], 0.25 + i*0.32, 0.9, 0.16));
+  drone(146.83, 0.1, 4.2, 0.05);
+}
+function tuneTitle(){ // when Marco Hunt appears
+  [['D5',0],['A4',0.18],['D5',0.36],['E5',0.54],['Fs5',0.72],['A5',1.05]].forEach(([n,t]) => pluck(N[n], t, 1.1, 0.18));
+  drone(146.83, 0, 2.6, 0.05); drone(220, 0.2, 2.4, 0.035);
+}
+function tuneUnwrap(){ [['A4',0],['D5',0.09],['Fs5',0.18],['A5',0.27]].forEach(([n,t]) => pluck(N[n], t, 0.7, 0.2)); }
+
+/* ---------------- three.js stage ---------------- */
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 0, 9);
+addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+const key = new THREE.DirectionalLight(0xffffff, 1.4); key.position.set(2,3,5); scene.add(key);
+
+const NIGHT = new THREE.Color('#0d1730'), PARCH = new THREE.Color('#f1e4c8');
+const bgCol = new THREE.Color().copy(UNWRAP ? PARCH : NIGHT);
+scene.background = bgCol;
+
+/* parchment texture, drawn here */
+function parchTex(w, h, base){
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+  x.fillStyle = base; x.fillRect(0,0,w,h);
+  for (let i = 0; i < 2600; i++){ x.fillStyle = `rgba(120,85,40,${Math.random()*0.07})`; x.fillRect(Math.random()*w, Math.random()*h, 1+Math.random()*2, 1+Math.random()*2); }
+  for (let i = 0; i < 70; i++){ x.strokeStyle = `rgba(110,80,40,${0.04+Math.random()*0.05})`; x.beginPath(); const y = Math.random()*h; x.moveTo(0,y); x.bezierCurveTo(w*.3,y+Math.random()*20-10,w*.7,y+Math.random()*20-10,w,y+Math.random()*16-8); x.stroke(); }
+  const g = x.createRadialGradient(w/2,h/2,Math.min(w,h)*.2,w/2,h/2,Math.max(w,h)*.75); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(90,58,30,.28)');
+  x.fillStyle = g; x.fillRect(0,0,w,h);
+  const t = new THREE.CanvasTexture(c); return t;
+}
+function glowTex(){
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  const g = x.createRadialGradient(32,32,0,32,32,32); g.addColorStop(0,'rgba(255,248,220,1)'); g.addColorStop(.35,'rgba(240,210,140,.8)'); g.addColorStop(1,'rgba(240,210,140,0)');
+  x.fillStyle = g; x.fillRect(0,0,64,64); return new THREE.CanvasTexture(c);
+}
+const GLOW = glowTex();
+
+/* ---------------- Kithe's logo: the same four extruded shapes as the Kithe 3D logo ---------------- */
+const S=200, CX=512, CY=511.5, mx=px=>(px-CX)/S, my=py=>(CY-py)/S;
+function roundedRect(x0,y0,x1,y1,r){
+  const s=new THREE.Shape();
+  s.moveTo(x0+r.tl,y1); s.lineTo(x1-r.tr,y1);
+  if(r.tr) s.quadraticCurveTo(x1,y1,x1,y1-r.tr); else s.lineTo(x1,y1);
+  s.lineTo(x1,y0+r.br);
+  if(r.br) s.quadraticCurveTo(x1,y0,x1-r.br,y0); else s.lineTo(x1,y0);
+  s.lineTo(x0+r.bl,y0);
+  if(r.bl) s.quadraticCurveTo(x0,y0,x0,y0+r.bl); else s.lineTo(x0,y0);
+  s.lineTo(x0,y1-r.tl);
+  if(r.tl) s.quadraticCurveTo(x0,y1,x0+r.tl,y1); else s.lineTo(x0,y1);
+  s.closePath(); return s;
+}
+function petal(tip,corner,c1,c2){ const s=new THREE.Shape(); s.moveTo(tip[0],tip[1]); s.quadraticCurveTo(c1[0],c1[1],corner[0],corner[1]); s.quadraticCurveTo(c2[0],c2[1],tip[0],tip[1]); s.closePath(); return s; }
+const EX={depth:0.17,bevelEnabled:true,bevelThickness:0.018,bevelSize:0.018,bevelOffset:0,bevelSegments:4,curveSegments:40};
+const R=70/S,RB=55/S,RS=8/S, L=mx(360),M=mx(468),TOP=my(363),BOT=my(660);
+const parts=[
+  {s:roundedRect(L,0,M,TOP,{tl:RS,tr:R,br:0,bl:0}),c:'#2c8b9c'},
+  {s:roundedRect(L,BOT,M,0,{tl:0,tr:0,br:R,bl:RB}),c:'#1b5c7d'},
+  {s:petal([M,0],[mx(668),TOP],[mx(668),0],[M,TOP]),c:'#35b77e'},
+  {s:petal([M,0],[mx(668),BOT],[mx(668),0],[M,BOT]),c:'#2c8f73'},
+];
+const kithe = new THREE.Group(), inner = new THREE.Group();
+const logoMats = [];
+parts.forEach((p,i) => {
+  const g = new THREE.ExtrudeGeometry(p.s, EX); g.translate(0,0,-EX.depth/2);
+  const m = new THREE.MeshStandardMaterial({color:new THREE.Color('#e3c46a'), roughness:0.34, metalness:0.25, transparent:true, opacity:0});
+  m.userData.final = new THREE.Color(p.c); logoMats.push(m);
+  const mesh = new THREE.Mesh(g, m); mesh.position.z = i*0.0012; inner.add(mesh);
+});
+const bb = new THREE.Box3().setFromObject(inner), ctr = bb.getCenter(new THREE.Vector3());
+inner.position.set(-ctr.x,-ctr.y,-ctr.z); kithe.add(inner);
+kithe.scale.setScalar(1.25); kithe.position.y = 0.55; kithe.visible = false; scene.add(kithe);
+
+/* the constellation: stars on the logo's outline, joined by gold lines */
+const starPts = [];
+parts.forEach(p => { const pts = p.s.getSpacedPoints(p.s === parts[2].s || p.s === parts[3].s ? 9 : 11); pts.pop(); pts.forEach(v => starPts.push(new THREE.Vector3(v.x-ctr.x, v.y-ctr.y, 0))); });
+const sky = new THREE.Group(); sky.scale.setScalar(1.25); sky.position.y = 0.55; scene.add(sky);
+const starSprites = starPts.map(v => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW, transparent:true, opacity:0, depthWrite:false})); sp.position.copy(v); sp.scale.setScalar(0.16); sky.add(sp); return sp; });
+const lineGeo = new THREE.BufferGeometry().setFromPoints(starPts);
+const lineMat = new THREE.LineBasicMaterial({color:0xe3c46a, transparent:true, opacity:0.0});
+// draw each part's outline as its own loop
+let off = 0; const loops = [];
+parts.forEach((p,i) => { const n = (i>=2?9:11); const idx=[]; for(let k=0;k<n;k++) idx.push(off+k); idx.push(off); off+=n; const g=new THREE.BufferGeometry().setFromPoints(idx.map(j=>starPts[j])); const l=new THREE.Line(g,lineMat.clone()); l.geometry.setDrawRange(0,0); sky.add(l); loops.push({line:l,count:idx.length}); });
+// background stars
+const far = new THREE.Group(); scene.add(far);
+for (let i = 0; i < 90; i++){ const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW, transparent:true, opacity:0.2+Math.random()*0.5, depthWrite:false})); sp.position.set((Math.random()-.5)*14, (Math.random()-.5)*22, -3-Math.random()*4); sp.scale.setScalar(0.04+Math.random()*0.08); sp.userData.tw = Math.random()*6; far.add(sp); }
+far.visible = !UNWRAP;
+
+/* ---------------- the gift (first time only) ---------------- */
+const gift = new THREE.Group(); scene.add(gift);
+const ptex = parchTex(512, 512, '#ead9b0');
+const paper = new THREE.MeshLambertMaterial({map:ptex, color:'#fff4d6', emissive:'#3a2a10', emissiveIntensity:0.25});
+const ribbonM = new THREE.MeshStandardMaterial({color:'#a8322d', roughness:0.45, metalness:0.05});
+const base = new THREE.Mesh(new THREE.BoxGeometry(2.6,1.7,2.6), paper); base.position.y = -0.95; gift.add(base);
+const lid = new THREE.Group(); const lidBox = new THREE.Mesh(new THREE.BoxGeometry(2.78,0.42,2.78), paper); lid.add(lidBox); lid.position.y = 0.1; gift.add(lid);
+const rib = [];
+function ribbon(w,h,d,x,y,z,parent){ const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), ribbonM); m.position.set(x,y,z); (parent||gift).add(m); rib.push(m); return m; }
+ribbon(0.34,1.74,2.64,0,-0.95,0); ribbon(2.64,1.74,0.34,0,-0.95,0);
+ribbon(0.34,0.46,2.82,0,0,0,lid); ribbon(2.82,0.46,0.34,0,0,0,lid);
+const bow = new THREE.Group(); bow.position.y = 0.42; lid.add(bow);
+function loop(side){ const t = new THREE.Mesh(new THREE.TorusGeometry(0.4,0.1,12,40), ribbonM); t.scale.set(1.15,0.7,1); t.rotation.set(0.25, side*0.35, side*0.45); t.position.set(side*0.42, 0.42, 0); return t; }
+const loopL = loop(-1), loopR = loop(1); bow.add(loopL, loopR);
+const knot = new THREE.Mesh(new THREE.SphereGeometry(0.17,20,16), ribbonM); knot.position.y = 0.16; bow.add(knot);
+const tailL = new THREE.Mesh(new THREE.BoxGeometry(0.16,0.05,0.7), ribbonM); tailL.position.set(-0.2,0.06,0.42); tailL.rotation.y = 0.5; bow.add(tailL);
+const tailR = tailL.clone(); tailR.position.x = 0.2; tailR.rotation.y = -0.5; bow.add(tailR);
+gift.rotation.set(0.38, -0.6, 0); gift.scale.setScalar(0.7); gift.position.y = -0.1;
+gift.visible = UNWRAP;
+const burst = new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW, transparent:true, opacity:0, depthWrite:false})); burst.position.set(0,0.2,0.5); scene.add(burst);
+
+/* ---------------- timeline ---------------- */
+let phase = UNWRAP ? 'gift' : 'stars', t0 = performance.now()/1000, unwrapAt = -1;
+function T(){ return performance.now()/1000 - t0; }
+const ease = x => x<0?0:x>1?1:x*x*(3-2*x);
+const seg = (t,a,b) => ease((t-a)/(b-a));
+if (UNWRAP) setTimeout(() => show('hint', true), 900);
+else { tuneStars(); setTimeout(() => show('skip', true), 600); }
+
+addEventListener('pointerdown', () => {
+  audio();
+  if (phase === 'gift' && unwrapAt < 0){ unwrapAt = T(); show('hint', false); tuneUnwrap(); return; }
+  if (phase !== 'gift') done(); // tap skips the opening
+});
+
+let titled = false, finished = false;
+function frame(){
+  const t = T();
+  if (phase === 'gift'){
+    gift.rotation.y = -0.6 + Math.sin(t*0.7)*0.12; gift.position.y = -0.1 + Math.sin(t*1.4)*0.05;
+    if (unwrapAt >= 0){
+      const u = t - unwrapAt;
+      const b = seg(u,0,0.7); bow.scale.setScalar(1-b); bow.rotation.y = b*4;
+      const r = seg(u,0.4,1.4); rib.forEach((m,i) => { m.position.x += (i%2?1:-1)*r*0.05; m.material.opacity = 1; m.scale.y = 1 - r*0.0; m.visible = r < 0.98; });
+      const l = seg(u,0.9,2.0); lid.position.y = 0.1 + l*4.5; lid.rotation.x = -l*1.4; lid.rotation.z = l*0.6;
+      const w = seg(u,1.3,2.4); burst.material.opacity = w; burst.scale.setScalar(0.5 + w*22);
+      bgCol.copy(PARCH).lerp(NIGHT, seg(u,2.2,2.9)); burst.material.opacity = w*(1-seg(u,2.4,3.1));
+      if (u > 2.4){ gift.visible = false; far.visible = true; }
+      if (u > 3.1){ phase = 'stars'; t0 = performance.now()/1000; tuneStars(); show('skip', true); }
+    }
+  } else {
+    // the astrologers' sky: stars light up along Kithe's logo and gold lines join them
+    starSprites.forEach((sp,i) => { const a = seg(t, 0.3 + i*0.055, 0.6 + i*0.055); sp.material.opacity = a*(1 - seg(t,3.6,4.4)*0.85)*(1 - seg(t,6.4,7.2)); sp.scale.setScalar(0.16 + 0.05*Math.sin(t*5+i)); });
+    loops.forEach((lp,i) => { const a = seg(t, 1.0 + i*0.45, 2.2 + i*0.45); lp.line.geometry.setDrawRange(0, Math.ceil(a*lp.count)); lp.line.material.opacity = 0.85*(1 - seg(t,3.8,4.6)); });
+    far.children.forEach(sp => { sp.material.opacity = (0.25 + 0.25*Math.sin(t*2 + sp.userData.tw)) * (1 - seg(t, 6.6, 7.6)); });
+    // the constellation becomes the logo: it rises out of the chart and takes its colours
+    if (t > 3.2){ kithe.visible = true; }
+    const rise = seg(t, 3.2, 4.8);
+    logoMats.forEach(m => { m.opacity = rise; m.color.copy(new THREE.Color('#e3c46a')).lerp(m.userData.final, seg(t,4.2,5.6)); });
+    kithe.rotation.y = (1-rise)*1.2 + Math.sin(t*0.9)*0.08*rise; kithe.rotation.x = (1-rise)*0.6;
+    kithe.position.z = -1.5*(1-rise);
+    if (t > 4.6) show('presents', true);
+    // dawn over the map: night turns to parchment, the logo steps back, the title arrives
+    const dawn = seg(t, 6.6, 7.8);
+    bgCol.copy(NIGHT).lerp(PARCH, dawn);
+    if (t > 6.4) show('presents', false);
+    kithe.position.y = 0.55 + dawn*1.6; kithe.scale.setScalar(1.25 - dawn*0.55);
+    if (t > 7.6 && !titled){ titled = true; show('title', true); setTimeout(() => show('tag', true), 700); tuneTitle(); $('skip').style.color = '#8a7454'; }
+    if (t > 12.0 && !finished){ finished = true; done(); }
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body></html>

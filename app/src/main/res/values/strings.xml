@@ -9,7 +9,7 @@
     <string name="soon">Coming in a later build</string>
     <string name="about">About</string>
     <string name="language">Español</string>
-    <string name="about_text">Marco Hunt, a Kithe game. Build 0.1, the table prototype: solo on a plain board, placeholder art. No ads, no accounts, no data collected, no permissions.</string>
+    <string name="about_text">Marco Hunt, a Kithe game. Build 0.3: solo on a plain board, placeholder art. No ads, no accounts, no data collected, no permissions.</string>
     <string name="choose_class">Choose your traveller</string>
     <string name="knight">Knight</string>
     <string name="traveler">Traveler</string>
@@ -120,4 +120,6 @@
     <string name="here_is">Here: %1$s</string>
     <string name="mark_near">%1$s, by %2$s</string>
     <string name="long_press">Long-press a square to read the map.</string>
+    <string name="dedication_title">A riddle from the Khan\'s astrologers</string>
+    <string name="dedication">We read the stars for you all night, and they puzzled us. They spoke of a traveller born on a day that is not the birthday — and yet it counts. The traveller asked for a game, and the game came wrapped in parchment with a red bow. The traveller walks inside maps no one has drawn yet, and hunts a man who hides among friends. Who is this traveller? We argued until dawn. Then we wrote one word on the scroll, and it was the name of whoever now holds this phone. Happy birthday, traveller. The stars insist it counts.</string>
 </resources>

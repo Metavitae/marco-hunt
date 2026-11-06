@@ -9,7 +9,7 @@
     <string name="soon">Llega en una versión posterior</string>
     <string name="about">Acerca de</string>
     <string name="language">English</string>
-    <string name="about_text">Marco Hunt, un juego de Kithe. Versión 0.1, el prototipo de mesa: en solitario sobre un tablero simple, con arte provisional. Sin anuncios, sin cuentas, sin recoger datos, sin permisos.</string>
+    <string name="about_text">Marco Hunt, un juego de Kithe. Versión 0.3: en solitario sobre un tablero simple, con arte provisional. Sin anuncios, sin cuentas, sin recoger datos, sin permisos.</string>
     <string name="choose_class">Elige tu viajero</string>
     <string name="knight">Caballero</string>
     <string name="traveler">Viajero</string>
@@ -120,4 +120,6 @@
     <string name="here_is">Aquí: %1$s</string>
     <string name="mark_near">%1$s, junto a %2$s</string>
     <string name="long_press">Mantén pulsada una casilla para leer el mapa.</string>
+    <string name="dedication_title">Un acertijo de los astrólogos del Kan</string>
+    <string name="dedication">Leímos las estrellas para ti toda la noche, y nos dejaron perplejos. Hablaban de un viajero nacido en un día que no es su cumpleaños — y aun así cuenta. El viajero pidió un juego, y el juego llegó envuelto en pergamino con un moño rojo. El viajero camina dentro de mapas que nadie ha dibujado todavía, y caza a un hombre que se esconde entre amigos. ¿Quién es ese viajero? Discutimos hasta el amanecer. Luego escribimos una sola palabra en el pergamino, y era el nombre de quien ahora sostiene este teléfono. Feliz cumpleaños, viajero. Las estrellas insisten en que cuenta.</string>
 </resources>

@@ -142,8 +142,10 @@ class GameActivity : Activity(), Game.Listener {
 
     private fun action(res: Int, onClick: () -> Unit) = Button(this).apply {
         text = getString(res); isAllCaps = false; textSize = 14f
+        setBackgroundResource(R.drawable.btn_parchment); setTextColor(Art.INK); typeface = Typeface.SERIF
+        setPadding(dp(4), dp(10), dp(4), dp(10))
         setOnClickListener { onClick() }
-        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(3); rightMargin = dp(3) }
     }
 
     // ------------------------------------------------------------------ the turn loop
@@ -365,6 +367,7 @@ class GameActivity : Activity(), Game.Listener {
         sac.addView(TextView(this).apply { text = "${getString(R.string.items)} (${clsName(me.cls)}, ♥${me.vigor}): "; textSize = 14f; setTextColor(Art.INK) })
         for (it in me.items.toList()) sac.addView(Button(this).apply {
             text = itemName(it); isAllCaps = false; textSize = 13f
+            setBackgroundResource(R.drawable.btn_parchment); setTextColor(Art.INK)
             setOnClickListener { _ -> useItem(it) }
         })
         log.text = lines.takeLast(6).reversed().joinToString("\n")

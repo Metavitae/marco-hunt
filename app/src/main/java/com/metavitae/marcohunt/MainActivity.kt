@@ -30,6 +30,10 @@ class MainActivity : Activity() {
             setBackgroundColor(Art.PARCHMENT)
             setPadding(dp(24), dp(48), dp(24), dp(24))
         }
+        col.addView(android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_launcher_fg)
+            layoutParams = LinearLayout.LayoutParams(dp(120), dp(120))
+        })
         col.addView(TextView(this).apply {
             text = getString(R.string.app_name); textSize = 40f; setTextColor(Art.INK)
             typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD); gravity = Gravity.CENTER
@@ -43,7 +47,9 @@ class MainActivity : Activity() {
         col.addView(button(R.string.host, enabled = false) { soon() })
         col.addView(button(R.string.join, enabled = false) { soon() })
         col.addView(button(R.string.about) {
-            AlertDialog.Builder(this).setTitle(R.string.app_name).setMessage(R.string.about_text).setPositiveButton("OK", null).show()
+            AlertDialog.Builder(this).setTitle(R.string.app_name)
+                .setMessage(getString(R.string.about_text) + "\n\n" + getString(R.string.dedication_title) + "\n\n" + getString(R.string.dedication))
+                .setPositiveButton("OK", null).show()
         })
         col.addView(button(R.string.language) { Lang.toggle(this); recreate() })
         setContentView(ScrollView(this).apply { setBackgroundColor(Art.PARCHMENT); addView(col) })
@@ -53,6 +59,8 @@ class MainActivity : Activity() {
 
     private fun button(res: Int, enabled: Boolean = true, onClick: () -> Unit) = Button(this).apply {
         text = getString(res); textSize = 18f; isAllCaps = false; isEnabled = enabled
+        setBackgroundResource(R.drawable.btn_parchment); setTextColor(if (enabled) Art.INK else 0xFFA89A7A.toInt())
+        typeface = Typeface.create(Typeface.SERIF, Typeface.NORMAL); setPadding(dp(12), dp(14), dp(12), dp(14))
         if (!enabled) text = "${getString(res)} — ${getString(R.string.soon)}"
         setOnClickListener { onClick() }
         layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) }
