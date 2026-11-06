@@ -142,4 +142,5 @@
     <string name="ar_mark2">Esquina 1 guardada. Ahora camina al objeto de la esquina opuesta y toca Fijar tablero.</string>
     <string name="ar_ready">¡Tablero fijado! Las casillas miden %1$d cm.</string>
     <string name="ar_elsewhere">El teléfono cree que estás en la casilla %1$d,%2$d. Camina a la casilla iluminada, o toca Estoy aquí otra vez para confirmar.</string>
+    <string name="tests">Pruebas</string>
 </resources>

@@ -52,6 +52,7 @@ class MainActivity : Activity() {
                 .setPositiveButton("OK", null).show()
         })
         col.addView(button(R.string.language) { Lang.toggle(this); recreate() })
+        col.addView(button(R.string.tests) { startActivity(Intent(this, TestActivity::class.java)) })
         setContentView(ScrollView(this).apply { setBackgroundColor(Art.PARCHMENT); addView(col) })
     }
 

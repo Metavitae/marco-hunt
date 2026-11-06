@@ -22,5 +22,7 @@
         </activity>
         <activity android:name=".MainActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".GameActivity" android:exported="false" android:screenOrientation="portrait" />
+        <!-- the test lab; exported so CC can start the automatic test over adb (it shows and saves only test results) -->
+        <activity android:name=".TestActivity" android:exported="true" android:screenOrientation="portrait" />
     </application>
 </manifest>
