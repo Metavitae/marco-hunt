@@ -322,6 +322,16 @@ class GameActivity : Activity(), Game.Listener {
         say(if (winner < 0) getString(R.string.fight_tie) else getString(R.string.fight_won, name(g.players[winner])))
         if (tutorial) coachTip(5, R.string.t5)
     }
+    override fun onPeril(g: Game, p: Player, peril: Content, strength: Int, blocked: Boolean) {
+        if (p.id != 0) return
+        val cr = Art.creatureFor(peril, g.idx(p.r, p.c)) ?: return
+        val bmp = Art.bitmap(this, cr) ?: return
+        ui.post {
+            val img = android.widget.ImageView(this).apply { setImageBitmap(bmp); adjustViewBounds = true; setPadding(dp(16), dp(8), dp(16), dp(8)) }
+            AlertDialog.Builder(this).setTitle(itemName(peril)).setView(img).setPositiveButton("OK", null).show()
+        }
+    }
+
     override fun onOpen(g: Game, p: Player, what: Content) {
         val shown = if (p.id == 0) itemName(what) else when {
             what.isPeril -> "⚠"; what.isPowerUp -> "🎁"; what == Content.ORACLE -> itemName(what); else -> getString(R.string.nothing)

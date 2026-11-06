@@ -61,7 +61,11 @@ class BoardView(ctx: Context) : View(ctx) {
                 val ct = g.content[i]
                 when {
                     ct == Content.ORACLE -> Art.draw(context, c, Art.ORACLE, r, Art.GOLD, "☉", round = true)
-                    ct.isPeril -> Art.draw(context, c, Art.HOLE, r, 0x99402A1A.toInt(), "")
+                    ct.isPeril -> {
+                        val cr = Art.creatureFor(ct, i)
+                        if (cr != null && Art.bitmap(context, cr) != null) Art.draw(context, c, cr, rect(i / g.n, i % g.n, s, s * 0.04f), 0, "")
+                        else Art.draw(context, c, Art.HOLE, r, 0x99402A1A.toInt(), "")
+                    }
                     ct.isPowerUp -> Art.draw(context, c, Art.CONTAINER[i % 3], r, 0x99C9A227.toInt(), "")
                     else -> Art.draw(context, c, Art.CONTAINER[i % 3], r, 0x44A0815A, "")
                 }

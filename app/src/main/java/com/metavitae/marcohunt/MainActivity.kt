@@ -48,7 +48,7 @@ class MainActivity : Activity() {
         col.addView(button(R.string.join, enabled = false) { soon() })
         col.addView(button(R.string.about) {
             AlertDialog.Builder(this).setTitle(R.string.app_name)
-                .setMessage(getString(R.string.about_text) + "\n\n" + getString(R.string.dedication_title) + "\n\n" + getString(R.string.dedication))
+                .setMessage(getString(R.string.about_text) + "\n\n" + getString(R.string.art_credit) + "\n\n" + getString(R.string.dedication_title) + "\n\n" + getString(R.string.dedication))
                 .setPositiveButton("OK", null).show()
         })
         col.addView(button(R.string.language) { Lang.toggle(this); recreate() })

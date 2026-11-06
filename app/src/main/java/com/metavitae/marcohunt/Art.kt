@@ -48,6 +48,14 @@ object Art {
     val DECO = arrayOf("deco_stone", "deco_banner", "deco_reeds", "deco_tent")
     val CONTAINER = arrayOf("open_crate", "open_box", "open_trunk")
     const val HOLE = "open_hole"
+
+    /** The era's creature that appears when a peril is found (painted with Canva AI; the siren is left out, care rule). */
+    fun creatureFor(peril: com.metavitae.marcohunt.engine.Types.Content, square: Int): String? = when (peril) {
+        com.metavitae.marcohunt.engine.Types.Content.SERPENT -> arrayOf("creature_serpent", "creature_dragon", "creature_basilisk")[square % 3]
+        com.metavitae.marcohunt.engine.Types.Content.SCATTER -> arrayOf("creature_hafgufa", "creature_ruc")[square % 2]
+        com.metavitae.marcohunt.engine.Types.Content.FREEZE -> "creature_whitebear"
+        else -> null
+    }
     const val BOARD = "board_map"
     const val ORACLE = "square_oracle"
     const val SPOTLIGHT = "square_spotlight"
