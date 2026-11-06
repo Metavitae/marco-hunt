@@ -656,7 +656,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             ui["lines"]?.split("\u0001")?.filter { it.isNotBlank() }?.let { lines.addAll(it) }
             lines.add(getString(R.string.camp_resumed))
             // a turn that was already rolled stays open
-            if (g.current().human && g.moveRoll > 0 && !g.moved) { turnOpen = true; mode = Mode.MOVE }
+            if (g.current().human && g.moveAllowance() > 0 && !g.hasMoved()) { turnOpen = true; mode = Mode.MOVE }
             true
         } catch (e: Exception) { Camp.clear(this); false }
     }
