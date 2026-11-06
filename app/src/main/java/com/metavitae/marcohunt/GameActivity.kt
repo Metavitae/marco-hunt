@@ -49,6 +49,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     private lateinit var camBtn: Button
     private lateinit var setBtn: Button
     private lateinit var hereBtn: Button
+    private lateinit var quietBtn: Button
     private lateinit var status: TextView
     private lateinit var signal: TextView
     private lateinit var suspects: LinearLayout
@@ -76,6 +77,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         super.onCreate(saved)
         level = intent.getIntExtra("level", 1)
         tutorial = intent.getBooleanExtra("tutorial", false)
+        Signal.init(this)
         if (tutorial) level = 0
         newGame(intent.getIntExtra("cls", 0), intent.getIntExtra("n", 10), intent.getIntExtra("rivals", 3))
         buildUi()
@@ -160,7 +162,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         camBtn = action(R.string.camera) { toggleCamera() }
         setBtn = action(R.string.set_board) { setBoard() }
         hereBtn = action(R.string.im_here) { arrive() }
-        modeRow.addView(camBtn); modeRow.addView(setBtn); modeRow.addView(hereBtn)
+        quietBtn = action(R.string.sound_on) { Signal.setQuiet(this, !Signal.quiet(this)); refresh() }
+        modeRow.addView(camBtn); modeRow.addView(setBtn); modeRow.addView(hereBtn); modeRow.addView(quietBtn)
         root.addView(modeRow)
         root.addView(gap(16))
         signal = text(20f, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, dp(10)) }
@@ -344,6 +347,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         if (p.id != 0) return
         signalsSeen++
         lastBand = band
+        // colour always; sound while the camera board shows (unless quiet); vibration only when the camera is off
+        if (cameraOn) { if (!Signal.quiet(this)) Signal.play(band) } else Signal.buzz(this, band)
         fits.clear()
         for (s in g.players) if (s.id != 0) fits[s.id] = g.reading(me.cls, me.dist(s)) == band
         if (tutorial && signalsSeen == 1) coachTip(2, R.string.t2)
@@ -415,6 +420,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             setBtn.visibility = if (cameraOn) View.VISIBLE else View.GONE
             hereBtn.visibility = if (cameraOn && pendingMove >= 0) View.VISIBLE else View.GONE
             camBtn.text = getString(if (cameraOn) R.string.map else R.string.camera)
+            quietBtn.text = getString(if (Signal.quiet(this)) R.string.sound_off else R.string.sound_on)
         }
         board.picked = divPicks.toSet()
         board.invalidate()

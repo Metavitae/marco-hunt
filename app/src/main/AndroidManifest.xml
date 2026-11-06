@@ -2,6 +2,8 @@
 <!-- M2: the camera only (for the camera board). Nothing else. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- vibration for the signal when the camera is off (a normal permission: never asked, no data) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
     <application

@@ -143,4 +143,6 @@
     <string name="ar_ready">Board set! Squares are %1$d cm.</string>
     <string name="ar_elsewhere">The phone thinks you are on square %1$d,%2$d. Walk to the lit square, or tap I\'m here again to confirm.</string>
     <string name="tests">Tests</string>
+    <string name="sound_on">🔈 Sound</string>
+    <string name="sound_off">🔇 Quiet</string>
 </resources>
