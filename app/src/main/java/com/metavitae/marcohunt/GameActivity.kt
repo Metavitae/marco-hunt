@@ -492,7 +492,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         refresh()
     }
 
-    override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, results: IntArray) {
+    override fun onRequestPermissionsResult(code: Int, perms: Array<String>, results: IntArray) {
         super.onRequestPermissionsResult(code, perms, results)
         if (code == 7 && results.isNotEmpty() && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) toggleCamera()
         else if (code == 7) say(getString(R.string.cam_denied))
