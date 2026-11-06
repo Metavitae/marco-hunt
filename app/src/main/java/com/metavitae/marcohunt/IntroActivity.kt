@@ -26,7 +26,8 @@ class IntroActivity : Activity() {
     override fun onCreate(saved: Bundle?) {
         super.onCreate(saved)
         val prefs = getSharedPreferences("marcohunt", Context.MODE_PRIVATE)
-        val firstTime = !prefs.getBoolean("unwrapped", false)
+        // the present box was opened and enjoyed (founder, Nov 6): it no longer plays
+        val firstTime = false && !prefs.getBoolean("unwrapped", false)
         val web = WebView(this)
         web.settings.javaScriptEnabled = true
         web.settings.mediaPlaybackRequiresUserGesture = false

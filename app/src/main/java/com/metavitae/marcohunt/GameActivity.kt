@@ -30,7 +30,7 @@ import com.metavitae.marcohunt.engine.Types.WinBy
  * Solo Hunt on the plain on-screen board. The human is player 0 and never Marco;
  * the AI travellers are rivals (if one of them finds Marco first, the human loses).
  */
-class GameActivity : Activity(), Game.Listener {
+class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
 
     override fun attachBaseContext(base: Context) = super.attachBaseContext(Lang.wrap(base))
 
@@ -38,6 +38,14 @@ class GameActivity : Activity(), Game.Listener {
     private lateinit var ai: Ai
     private lateinit var me: Player
     private lateinit var board: BoardView
+    private lateinit var stage: android.widget.FrameLayout
+    private var camView: CameraBoardView? = null
+    private var preview: androidx.camera.view.PreviewView? = null
+    private var cameraOn = false
+    private var pendingMove = -1
+    private lateinit var camBtn: Button
+    private lateinit var setBtn: Button
+    private lateinit var hereBtn: Button
     private lateinit var status: TextView
     private lateinit var signal: TextView
     private lateinit var suspects: LinearLayout
@@ -112,7 +120,15 @@ class GameActivity : Activity(), Game.Listener {
         status = text(15f, bold = true)
         root.addView(status)
         board = BoardView(this).apply { game = g; humanId = 0; onTap = { r, c -> tapped(r, c) }; onLongTap = { r, c -> readMap(r, c) } }
-        root.addView(board, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        camBtn = action(R.string.camera) { toggleCamera() }
+        setBtn = action(R.string.set_board) { camView?.setHeadingHere(); say(getString(R.string.board_set)) }
+        hereBtn = action(R.string.im_here) { arrive() }
+        modeRow.addView(camBtn); modeRow.addView(setBtn); modeRow.addView(hereBtn)
+        root.addView(modeRow)
+        stage = android.widget.FrameLayout(this)
+        stage.addView(board, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.WRAP_CONTENT))
+        root.addView(stage, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         signal = text(20f, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, dp(6), 0, dp(6)) }
         root.addView(signal)
         suspects = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -189,6 +205,7 @@ class GameActivity : Activity(), Game.Listener {
         if (!turnOpen || g.over) return
         when (mode) {
             Mode.MOVE -> if (g.reachable(me, r, c, g.moveAllowance())) {
+                if (cameraOn) { pendingMove = g.idx(r, c); say(getString(R.string.walk_there)); refresh(); return }
                 guard { g.move(me, r, c) }
                 if (tutorial && g.opened[g.idx(r, c)] && g.decorated(g.idx(r, c))) coachTip(4, R.string.t4)
                 endHumanTurn()
@@ -344,6 +361,16 @@ class GameActivity : Activity(), Game.Listener {
 
     private fun refresh() {
         board.lit = if (turnOpen && mode == Mode.MOVE && !g.over) reachableSquares() else emptySet()
+        camView?.let { cv ->
+            cv.lit = board.lit; cv.picked = pendingMove; cv.revealedMarco = board.revealedMarco
+            cv.tint = when (lastBand) { Band.HOT -> 0x22E05A3C; Band.WARM -> 0x22F0B040; Band.COLD -> 0x223C7FE0; null -> 0 }
+            cv.invalidate()
+        }
+        if (::setBtn.isInitialized) {
+            setBtn.visibility = if (cameraOn) View.VISIBLE else View.GONE
+            hereBtn.visibility = if (cameraOn && pendingMove >= 0) View.VISIBLE else View.GONE
+            camBtn.text = getString(if (cameraOn) R.string.map else R.string.camera)
+        }
         board.picked = divPicks.toSet()
         board.invalidate()
         status.text = when {
@@ -431,5 +458,57 @@ class GameActivity : Activity(), Game.Listener {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    override fun onDestroy() { finished = true; ui.removeCallbacksAndMessages(null); super.onDestroy() }
+    // ------------------------------------------------------------------ camera-lite board (M2)
+
+    private fun toggleCamera() {
+        if (cameraOn) {
+            cameraOn = false; pendingMove = -1
+            camView?.stop(); stage.removeAllViews()
+            stage.addView(board); refresh(); return
+        }
+        if (checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            say(getString(R.string.cam_why))
+            requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 7); return
+        }
+        cameraOn = true
+        val h = (resources.displayMetrics.heightPixels * 0.62f).toInt()
+        val pv = androidx.camera.view.PreviewView(this)
+        val cv = CameraBoardView(this).apply { game = g; humanId = 0; onTap = { r, c -> tapped(r, c) } }
+        stage.removeAllViews()
+        stage.addView(pv, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, h))
+        stage.addView(cv, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, h))
+        preview = pv; camView = cv
+        val future = androidx.camera.lifecycle.ProcessCameraProvider.getInstance(this)
+        future.addListener({
+            try {
+                val provider = future.get()
+                val p = androidx.camera.core.Preview.Builder().build().also { it.setSurfaceProvider(pv.surfaceProvider) }
+                provider.unbindAll()
+                provider.bindToLifecycle(this, androidx.camera.core.CameraSelector.DEFAULT_BACK_CAMERA, p)
+            } catch (e: Exception) { say("Camera: ${e.message}") }
+        }, mainExecutor)
+        cv.start()
+        say(getString(R.string.cam_hint))
+        refresh()
+    }
+
+    override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, results: IntArray) {
+        super.onRequestPermissionsResult(code, perms, results)
+        if (code == 7 && results.isNotEmpty() && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) toggleCamera()
+        else if (code == 7) say(getString(R.string.cam_denied))
+    }
+
+    /** Walk mode: the player stands on the picked square and taps "I'm here"; then the move counts. */
+    private fun arrive() {
+        if (pendingMove < 0 || !turnOpen) return
+        val r = pendingMove / g.n; val c = pendingMove % g.n
+        pendingMove = -1
+        guard { g.move(me, r, c) }
+        endHumanTurn()
+    }
+
+    override fun onPause() { super.onPause(); camView?.stop() }
+    override fun onResume() { super.onResume(); if (cameraOn) camView?.start() }
+
+    override fun onDestroy() { finished = true; ui.removeCallbacksAndMessages(null); camView?.stop(); super.onDestroy() }
 }

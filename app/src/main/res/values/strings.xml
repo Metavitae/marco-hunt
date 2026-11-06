@@ -123,4 +123,13 @@
     <string name="dedication_title">A riddle from the Khan\'s astrologers</string>
     <string name="dedication">We read the stars for you all night, and they puzzled us. They spoke of a traveller born on a day that is not the birthday — and yet it counts. The traveller asked for a game, and the game came wrapped in parchment with a red bow. The traveller walks inside maps no one has drawn yet, and hunts a man who hides among friends. Who is this traveller? We argued until dawn. Then we wrote one word on the scroll, and it was the name of whoever now holds this phone. Happy birthday, traveller. The stars insist it counts.</string>
     <string name="art_credit">Paintings made with Canva AI (owned by the maker under Canva\'s AI Product Terms).</string>
+    <string name="camera">📷 Camera</string>
+    <string name="map">🗺 Map</string>
+    <string name="set_board">Set board</string>
+    <string name="im_here">I\'m here</string>
+    <string name="board_set">Board set: the rows now run the way the camera faces.</string>
+    <string name="walk_there">Walk to the lit square, then tap I\'m here.</string>
+    <string name="cam_why">The camera shows the board on the ground. Marco Hunt uses the camera only for that, and saves nothing.</string>
+    <string name="cam_hint">Point the camera at the ground. Stand on your square facing along the rows and tap Set board. Look up often and watch where you walk.</string>
+    <string name="cam_denied">No camera: the map board still works.</string>
 </resources>
