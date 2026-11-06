@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Marco Hunt mark (CC, Nov 6 2026): a compass star over a 3 x 3 grid of the hunt, with Marco's gold dot hidden in one square. -->
+<!-- Marco Hunt mark v2 (CC, Nov 6 2026): a gold-rimmed seal, the hunt's 3 x 3 grid, a bold compass star
+     (madder north point), and Marco's gold dot hidden in one square. Sized for the adaptive-icon safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:strokeColor="#5A3A1E" android:strokeWidth="2.4" android:fillColor="#00000000"
-        android:pathData="M30,30 L78,30 L78,78 L30,78 Z M46,30 L46,78 M62,30 L62,78 M30,46 L78,46 M30,62 L78,62" />
-    <path android:fillColor="#C9A227" android:pathData="M70,34 A3.2,3.2 0 1,1 69.99,34 Z" />
-    <path android:fillColor="#5A3A1E" android:pathData="M54,54 L58,50 L54,24 L50,50 Z" />
-    <path android:fillColor="#A8322D" android:pathData="M54,24 L58,50 L54,54 Z" />
-    <path android:fillColor="#5A3A1E" android:pathData="M54,54 L58,58 L54,84 L50,58 Z M54,54 L50,50 L24,54 L50,58 Z M54,54 L58,58 L84,54 L58,50 Z" />
-    <path android:fillColor="#C9A227" android:pathData="M54,49.5 A4.5,4.5 0 1,1 53.99,49.5 Z" />
+    <path android:strokeColor="#C9A227" android:strokeWidth="3" android:fillColor="#00000000"
+        android:pathData="M54,21 A33,33 0 1,1 53.99,21 Z" />
+    <path android:strokeColor="#5A3A1E" android:strokeWidth="1.2" android:fillColor="#00000000"
+        android:pathData="M54,25 A29,29 0 1,1 53.99,25 Z" />
+    <path android:strokeColor="#5A3A1E" android:strokeWidth="1.6" android:strokeAlpha="0.55" android:fillColor="#00000000"
+        android:pathData="M37,37 L71,37 L71,71 L37,71 Z M48.3,37 L48.3,71 M59.7,37 L59.7,71 M37,48.3 L71,48.3 M37,59.7 L71,59.7" />
+    <path android:fillColor="#C9A227" android:pathData="M65.4,42.6 A2.6,2.6 0 1,1 65.39,42.6 Z" />
+    <path android:fillColor="#5A3A1E" android:pathData="M54,54 L58.5,49.5 L54,22 L49.5,49.5 Z" />
+    <path android:fillColor="#A8322D" android:pathData="M54,22 L58.5,49.5 L54,54 Z" />
+    <path android:fillColor="#5A3A1E" android:pathData="M54,54 L58.5,58.5 L54,86 L49.5,58.5 Z M54,54 L49.5,49.5 L22,54 L49.5,58.5 Z M54,54 L58.5,58.5 L86,54 L58.5,49.5 Z" />
+    <path android:fillColor="#7A5530" android:pathData="M54,54 L57,51 L68,40 L51,57 Z M54,54 L51,51 L40,40 L57,57 Z M54,54 L57,57 L68,68 L51,51 Z M54,54 L51,57 L40,68 L57,51 Z" />
+    <path android:fillColor="#C9A227" android:strokeColor="#5A3A1E" android:strokeWidth="1" android:pathData="M54,48.5 A5.5,5.5 0 1,1 53.99,48.5 Z" />
 </vector>

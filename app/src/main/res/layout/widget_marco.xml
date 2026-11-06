@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Marco Hunt home-screen widget: the mark, the name and a call to hunt, on parchment. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp"
+    android:background="@drawable/widget_bg">
+    <ImageView android:layout_width="64dp" android:layout_height="64dp" android:src="@drawable/ic_launcher_fg"
+        android:contentDescription="@string/app_name" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:orientation="vertical" android:paddingStart="8dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/app_name"
+            android:textColor="#5A3A1E" android:textSize="22sp" android:textStyle="bold" android:fontFamily="serif" />
+        <TextView android:id="@+id/widget_line" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/widget_line" android:textColor="#8A6A44" android:textSize="14sp" android:fontFamily="serif" />
+    </LinearLayout>
+</LinearLayout>

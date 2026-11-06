@@ -1,2 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#F1E4C8" /></shape>
+<!-- Marco Hunt icon background: aged parchment with a darker rim (UI kit colours). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#E2CFA4" android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
+    <path android:fillColor="#F1E4C8" android:pathData="M54,10 A44,44 0 1,1 53.99,10 Z" />
+</vector>

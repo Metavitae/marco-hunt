@@ -145,4 +145,5 @@
     <string name="tests">Pruebas</string>
     <string name="sound_on">🔈 Sonido</string>
     <string name="sound_off">🔇 Silencio</string>
+    <string name="widget_line">Recorre el mapa antiguo. Toca para cazar.</string>
 </resources>

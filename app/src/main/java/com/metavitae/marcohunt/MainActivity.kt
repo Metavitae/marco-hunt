@@ -32,7 +32,7 @@ class MainActivity : Activity() {
         }
         col.addView(android.widget.ImageView(this).apply {
             setImageResource(R.drawable.ic_launcher_fg)
-            layoutParams = LinearLayout.LayoutParams(dp(120), dp(120))
+            layoutParams = LinearLayout.LayoutParams(dp(168), dp(168))
         })
         col.addView(TextView(this).apply {
             text = getString(R.string.app_name); textSize = 40f; setTextColor(Art.INK)

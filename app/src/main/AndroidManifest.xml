@@ -25,6 +25,10 @@
         <activity android:name=".MainActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".GameActivity" android:exported="false" android:screenOrientation="portrait" />
         <!-- the test lab; exported so CC can start the automatic test over adb (it shows and saves only test results) -->
+        <receiver android:name=".MarcoWidget" android:exported="true" android:label="@string/app_name">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_marco_info" />
+        </receiver>
         <activity android:name=".TestActivity" android:exported="true" android:screenOrientation="portrait" />
     </application>
 </manifest>
