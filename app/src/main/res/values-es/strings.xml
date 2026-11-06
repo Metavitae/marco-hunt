@@ -132,4 +132,8 @@
     <string name="cam_why">La cámara muestra el tablero en el suelo. Marco Hunt usa la cámara solo para eso y no guarda nada.</string>
     <string name="cam_hint">Apunta la cámara al suelo. Párate en tu casilla mirando a lo largo de las filas y toca Fijar tablero. Levanta la vista seguido y mira por dónde caminas.</string>
     <string name="cam_denied">Sin cámara: el tablero de mapa sigue funcionando.</string>
+    <string name="lbl_travellers">Viajeros</string>
+    <string name="lbl_chronicle">Crónica</string>
+    <string name="round_short">Ronda %1$d / %2$d</string>
+    <string name="actions_short">Acciones %1$d</string>
 </resources>

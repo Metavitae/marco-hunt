@@ -115,40 +115,82 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         g.listeners.add(this)
     }
 
+    private lateinit var roundChip: TextView
+    private lateinit var die: TextView
+    private lateinit var oppsChip: TextView
+
+    /** Rounded parchment card (UI kit): fill, ink border, 12dp corners. */
+    private fun card(fill: Int, stroke: Int = Art.INK, strokeDp: Int = 1, radiusDp: Int = 12) =
+        android.graphics.drawable.GradientDrawable().apply { setColor(fill); cornerRadius = dp(radiusDp).toFloat(); setStroke(dp(strokeDp), stroke) }
+
+    private fun gap(h: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, dp(h)) }
+
+    private fun sectionLabel(res: Int) = TextView(this).apply {
+        text = getString(res).uppercase(); textSize = 12f; letterSpacing = 0.12f; setTextColor(0xFF8A6A44.toInt())
+        typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD); setPadding(dp(2), 0, 0, dp(6))
+    }
+
     private fun buildUi() {
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Art.PARCHMENT); setPadding(dp(8), dp(8), dp(8), dp(8)) }
-        status = text(15f, bold = true)
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Art.PARCHMENT); setPadding(dp(16), dp(12), dp(16), dp(24)) }
+        // header: round · the die · actions left
+        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        roundChip = text(14f, bold = true).apply { background = card(0xFFFBF3DF.toInt()); setPadding(dp(12), dp(8), dp(12), dp(8)) }
+        die = TextView(this).apply {
+            textSize = 26f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER; typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+            background = card(Art.MADDER, Art.INK, 2, 10)
+            layoutParams = LinearLayout.LayoutParams(dp(56), dp(56)).apply { leftMargin = dp(12); rightMargin = dp(12) }
+        }
+        oppsChip = text(14f, bold = true).apply { background = card(0xFFFBF3DF.toInt()); setPadding(dp(12), dp(8), dp(12), dp(8)) }
+        header.addView(roundChip); header.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
+        header.addView(die); header.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) }); header.addView(oppsChip)
+        root.addView(header)
+        root.addView(gap(8))
+        status = text(15f).apply { gravity = Gravity.CENTER }
         root.addView(status)
+        root.addView(gap(12))
         board = BoardView(this).apply { game = g; humanId = 0; onTap = { r, c -> tapped(r, c) }; onLongTap = { r, c -> readMap(r, c) } }
+        stage = android.widget.FrameLayout(this).apply { background = card(Art.PARCHMENT, Art.INK, 2, 8); setPadding(dp(3), dp(3), dp(3), dp(3)) }
+        stage.addView(board, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.WRAP_CONTENT))
+        root.addView(stage, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        root.addView(gap(12))
         val modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         camBtn = action(R.string.camera) { toggleCamera() }
         setBtn = action(R.string.set_board) { camView?.setHeadingHere(); say(getString(R.string.board_set)) }
         hereBtn = action(R.string.im_here) { arrive() }
         modeRow.addView(camBtn); modeRow.addView(setBtn); modeRow.addView(hereBtn)
         root.addView(modeRow)
-        stage = android.widget.FrameLayout(this)
-        stage.addView(board, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.WRAP_CONTENT))
-        root.addView(stage, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        signal = text(20f, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, dp(6), 0, dp(6)) }
+        root.addView(gap(16))
+        signal = text(20f, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, dp(10)) }
         root.addView(signal)
+        root.addView(gap(16))
+        root.addView(sectionLabel(R.string.lbl_travellers))
         suspects = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(HorizontalScrollView(this).apply { addView(suspects) })
-        sac = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        root.addView(HorizontalScrollView(this).apply { addView(sac) })
+        root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(suspects) })
+        root.addView(gap(16))
+        root.addView(sectionLabel(R.string.items))
+        sac = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(sac) })
+        root.addView(gap(16))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         actions.addView(action(R.string.rest) { doRest() })
         actions.addView(action(R.string.skill) { doSkill() })
         actions.addView(action(R.string.attack) { doAttack() })
         actions.addView(action(R.string.accuse) { doAccuse() })
         root.addView(actions)
+        root.addView(gap(16))
         coach = text(15f).apply {
-            setBackgroundColor(0xFFFFF6DD.toInt()); setPadding(dp(10), dp(8), dp(10), dp(8)); visibility = View.GONE
+            background = card(0xFFFFF6DD.toInt(), Art.GOLD, 2); setPadding(dp(14), dp(12), dp(14), dp(12)); visibility = View.GONE
             setOnClickListener { visibility = View.GONE }
         }
         root.addView(coach)
-        log = text(13f)
-        root.addView(log)
-        root.addView(text(12f).apply { text = getString(R.string.long_press) })
+        root.addView(gap(16))
+        val chron = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = card(0xFFFBF3DF.toInt(), 0xFFC9B892.toInt()); setPadding(dp(14), dp(12), dp(14), dp(12)) }
+        chron.addView(sectionLabel(R.string.lbl_chronicle))
+        log = text(14f).apply { setLineSpacing(dp(3).toFloat(), 1f) }
+        chron.addView(log)
+        root.addView(chron)
+        root.addView(gap(12))
+        root.addView(text(12f).apply { text = getString(R.string.long_press); gravity = Gravity.CENTER; setTextColor(0xFF8A6A44.toInt()) })
         setContentView(ScrollView(this).apply { setBackgroundColor(Art.PARCHMENT); addView(root) })
     }
 
@@ -161,7 +203,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         setBackgroundResource(R.drawable.btn_parchment); setTextColor(Art.INK); typeface = Typeface.SERIF
         setPadding(dp(4), dp(10), dp(4), dp(10))
         setOnClickListener { onClick() }
-        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(3); rightMargin = dp(3) }
+        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(6); rightMargin = dp(6) }
     }
 
     // ------------------------------------------------------------------ the turn loop
@@ -373,15 +415,19 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         }
         board.picked = divPicks.toSet()
         board.invalidate()
+        roundChip.text = getString(R.string.round_short, g.round, g.rules.turnLimit)
+        val myTurn = turnOpen && g.current().human && !g.over
+        die.text = if (myTurn) g.moveAllowance().toString() else "·"
+        die.alpha = if (myTurn) 1f else 0.45f
+        oppsChip.text = getString(R.string.actions_short, if (myTurn) maxOf(0, g.opportunitiesLeft()) else 0)
         status.text = when {
             g.over -> ""
-            turnOpen && g.current().human -> getString(R.string.round, g.round, g.rules.turnLimit) + " · " +
-                getString(R.string.your_turn, g.moveAllowance()) + " · " + getString(R.string.opps, maxOf(0, g.opportunitiesLeft()))
-            else -> getString(R.string.round, g.round, g.rules.turnLimit)
+            myTurn -> getString(R.string.your_turn, g.moveAllowance())
+            else -> getString(R.string.their_turn, name(g.current()))
         }
         val b = lastBand
         signal.text = if (b == null) "" else getString(R.string.signal_says, bandName(b))
-        signal.setBackgroundColor(when (b) { Band.HOT -> 0xFFE9B3A6.toInt(); Band.WARM -> 0xFFF0D59B.toInt(); Band.COLD -> 0xFFB9CDE6.toInt(); null -> Color.TRANSPARENT })
+        signal.background = if (b == null) null else card(when (b) { Band.HOT -> 0xFFE9B3A6.toInt(); Band.WARM -> 0xFFF0D59B.toInt(); else -> 0xFFB9CDE6.toInt() }, Art.INK, 1, 14)
         // travellers strip: who fits your last signal (help depends on the level)
         suspects.removeAllViews()
         val help = tutorial || level == 0 || (level == 1 && signalsSeen <= 3)
@@ -395,13 +441,13 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             }
             suspects.addView(TextView(this).apply {
                 text = "${p.id} ${clsName(p.cls)}$mark"; textSize = 14f; setTextColor(Art.INK)
-                setBackgroundColor(Art.CLASS_COLOR[p.cls.ordinal]); setPadding(dp(8), dp(4), dp(8), dp(4))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(6) }
+                background = card(Art.CLASS_COLOR[p.cls.ordinal], Art.INK, 1, 16); setPadding(dp(12), dp(8), dp(12), dp(8)); typeface = Typeface.SERIF
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { rightMargin = dp(8) }
             })
         }
         // the sac
         sac.removeAllViews()
-        sac.addView(TextView(this).apply { text = "${getString(R.string.items)} (${clsName(me.cls)}, ♥${me.vigor}): "; textSize = 14f; setTextColor(Art.INK) })
+        sac.addView(TextView(this).apply { text = "${clsName(me.cls)} · ♥${me.vigor}   "; textSize = 14f; setTextColor(Art.INK); typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD) })
         for (it in me.items.toList()) sac.addView(Button(this).apply {
             text = itemName(it); isAllCaps = false; textSize = 13f
             setBackgroundResource(R.drawable.btn_parchment); setTextColor(Art.INK)
