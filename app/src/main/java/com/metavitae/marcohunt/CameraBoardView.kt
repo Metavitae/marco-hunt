@@ -36,6 +36,10 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     /** Board heading: compass direction (radians) in which the row number grows. */
     var heading = Float.NaN
     var tint = 0
+    /** Google AR state (8T and other certified phones). Null = sensor-only camera-lite. */
+    var ar: ArState? = null
+    private var curR = 0f; private var curC = 0f
+    private val tmp = FloatArray(4); private val out = FloatArray(4)
 
     private val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val rot = FloatArray(9).also { it[0] = 1f; it[4] = 1f; it[8] = 1f }
@@ -76,16 +80,29 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
 
     // world: x east, y north, z up; origin = the player's eye above the centre of his square
     private fun world(dr: Float, dc: Float, up: Float): FloatArray {
+        val a = ar
+        if (a != null) {
+            val r = curR + dr; val c = curC + dc
+            return floatArrayOf(a.m1x + (r * a.rAx + c * a.cAx) * a.s, a.floorY + up, a.m1z + (r * a.rAz + c * a.cAz) * a.s)
+        }
         val h = if (heading.isNaN()) 0f else heading
         val rx = sin(h); val ry = cos(h)        // row direction
         val cx = cos(h); val cy = -sin(h)       // column direction (to the right)
         return floatArrayOf((dr * rx + dc * cx) * squareM, (dr * ry + dc * cy) * squareM, up - eyeM)
     }
 
+    /** Pixels per metre at 1 m depth (used for the size of icons and banners). */
     private fun focal(): Float = (width / 2f) / tan(Math.toRadians(32.0).toFloat())
 
     /** Screen point for a world point, or null if behind the camera. */
     private fun project(p: FloatArray): FloatArray? {
+        val a = ar
+        if (a != null) {
+            tmp[0] = p[0]; tmp[1] = p[1]; tmp[2] = p[2]; tmp[3] = 1f
+            synchronized(a) { android.opengl.Matrix.multiplyMV(out, 0, a.vp, 0, tmp, 0) }
+            if (out[3] < 0.05f) return null
+            return floatArrayOf((out[0] / out[3] + 1f) / 2f * width, (1f - out[1] / out[3]) / 2f * height, out[3])
+        }
         // device = R^T * world
         val dx = rot[0] * p[0] + rot[3] * p[1] + rot[6] * p[2]
         val dy = rot[1] * p[0] + rot[4] * p[1] + rot[7] * p[2]
@@ -111,16 +128,19 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     override fun onDraw(c: Canvas) {
         val g = game ?: return
         if (tint != 0) c.drawColor(tint)
-        if (!haveRot) { c.drawText("…", width / 2f, height / 2f, hint); return }
+        val a = ar
+        if (a != null && !a.tracking) { c.drawText(context.getString(R.string.ar_look), width / 2f, height / 2f, hint); return }
+        if (a != null && !a.ready) { c.drawText(context.getString(R.string.ar_mark1), width / 2f, height * 0.85f, hint); return }
+        if (a == null && !haveRot) { c.drawText("…", width / 2f, height / 2f, hint); return }
         val me = g.players[humanId]
         val pr = me.r.toFloat(); val pc = me.c.toFloat()
-        val reach = 7
-        val r0 = maxOf(0, me.r - reach); val r1 = minOf(g.n - 1, me.r + reach)
-        val c0 = maxOf(0, me.c - reach); val c1 = minOf(g.n - 1, me.c + reach)
+        curR = pr; curC = pc
+        // the whole board (founder, Nov 6: "I couldn't see the whole outdoors board")
+        val r0 = 0; val r1 = g.n - 1
+        val c0 = 0; val c1 = g.n - 1
         // lit squares (where the roll can take you) and the picked square
         for (i in lit + if (picked >= 0) setOf(picked) else emptySet()) {
             val r = i / g.n; val cc = i % g.n
-            if (r < r0 || r > r1 || cc < c0 || cc > c1) continue
             val corners = listOf(-0.5f to -0.5f, -0.5f to 0.5f, 0.5f to 0.5f, 0.5f to -0.5f)
                 .map { project(world(r - pr + it.first, cc - pc + it.second, 0f)) }
             if (corners.any { it == null }) continue
@@ -177,7 +197,28 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
         val g = game ?: return false
-        if (e.action != MotionEvent.ACTION_UP || !haveRot) return true
+        if (e.action != MotionEvent.ACTION_UP) return true
+        val a = ar
+        if (a != null) {
+            if (!a.ready || !a.tracking) return true
+            // unproject the tap into a ray and meet the floor
+            val nx = e.x / width * 2f - 1f; val ny = 1f - e.y / height * 2f
+            val near = FloatArray(4); val far = FloatArray(4)
+            synchronized(a) {
+                android.opengl.Matrix.multiplyMV(near, 0, a.invVp, 0, floatArrayOf(nx, ny, -1f, 1f), 0)
+                android.opengl.Matrix.multiplyMV(far, 0, a.invVp, 0, floatArrayOf(nx, ny, 1f, 1f), 0)
+            }
+            for (k in 0..2) { near[k] /= near[3]; far[k] /= far[3] }
+            val dy = far[1] - near[1]
+            if (kotlin.math.abs(dy) < 1e-4f) return true
+            val t = (a.floorY - near[1]) / dy
+            if (t < 0) return true
+            val hx = near[0] + (far[0] - near[0]) * t - a.m1x; val hz = near[2] + (far[2] - near[2]) * t - a.m1z
+            val r = Math.round((hx * a.rAx + hz * a.rAz) / a.s); val c = Math.round((hx * a.cAx + hz * a.cAz) / a.s)
+            if (r in 0 until g.n && c in 0 until g.n) onTap?.invoke(r, c)
+            performClick(); return true
+        }
+        if (!haveRot) return true
         // ray from the eye through the tapped point, down to the ground
         val f = focal()
         val dx = (e.x - width / 2f) / f; val dy = -(e.y - height / 2f) / f; val dz = -1f

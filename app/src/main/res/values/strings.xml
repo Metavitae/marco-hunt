@@ -136,4 +136,10 @@
     <string name="lbl_chronicle">Chronicle</string>
     <string name="round_short">Round %1$d / %2$d</string>
     <string name="actions_short">Actions %1$d</string>
+    <string name="ar_hint">Real AR: walk to the object at the first corner and tap Set board, then to the object at the far corner and tap it again.</string>
+    <string name="ar_look">Move the phone slowly so it can see the ground…</string>
+    <string name="ar_mark1">Stand at the first-corner object and tap Set board</string>
+    <string name="ar_mark2">Corner 1 saved. Now walk to the far-corner object and tap Set board.</string>
+    <string name="ar_ready">Board set! Squares are %1$d cm.</string>
+    <string name="ar_elsewhere">The phone thinks you are on square %1$d,%2$d. Walk to the lit square, or tap I\'m here again to confirm.</string>
 </resources>

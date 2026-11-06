@@ -42,6 +42,9 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     private var camView: CameraBoardView? = null
     private var preview: androidx.camera.view.PreviewView? = null
     private var cameraOn = false
+    private var arView: ArView? = null
+    private var arState: ArState? = null
+    private var hereWarned = false
     private var pendingMove = -1
     private lateinit var camBtn: Button
     private lateinit var setBtn: Button
@@ -155,7 +158,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         root.addView(gap(12))
         val modeRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         camBtn = action(R.string.camera) { toggleCamera() }
-        setBtn = action(R.string.set_board) { camView?.setHeadingHere(); say(getString(R.string.board_set)) }
+        setBtn = action(R.string.set_board) { setBoard() }
         hereBtn = action(R.string.im_here) { arrive() }
         modeRow.addView(camBtn); modeRow.addView(setBtn); modeRow.addView(hereBtn)
         root.addView(modeRow)
@@ -427,6 +430,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         }
         val b = lastBand
         signal.text = if (b == null) "" else getString(R.string.signal_says, bandName(b))
+        signal.visibility = if (b == null) View.GONE else View.VISIBLE
         signal.background = if (b == null) null else card(when (b) { Band.HOT -> 0xFFE9B3A6.toInt(); Band.WARM -> 0xFFF0D59B.toInt(); else -> 0xFFB9CDE6.toInt() }, Art.INK, 1, 14)
         // travellers strip: who fits your last signal (help depends on the level)
         suspects.removeAllViews()
@@ -509,7 +513,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     private fun toggleCamera() {
         if (cameraOn) {
             cameraOn = false; pendingMove = -1
-            camView?.stop(); stage.removeAllViews()
+            camView?.stop(); arView?.pauseAr(); arView?.closeAr(); arView = null; arState = null
+            stage.removeAllViews()
             stage.addView(board); refresh(); return
         }
         if (checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -517,7 +522,21 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 7); return
         }
         cameraOn = true
-        val h = (resources.displayMetrics.heightPixels * 0.62f).toInt()
+        val h = (resources.displayMetrics.heightPixels * 0.86f).toInt() // nearly full screen
+        if (ArState.available(this)) {
+            // Google AR (certified phones such as the 8T): the board is pinned to the ground by two objects
+            val st = ArState()
+            val av = ArView(this, st)
+            val cv = CameraBoardView(this).apply { game = g; humanId = 0; ar = st; onTap = { r, c -> tapped(r, c) } }
+            av.onFrame = { cv.postInvalidate() }
+            stage.removeAllViews()
+            stage.addView(av, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, h))
+            stage.addView(cv, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, h))
+            arView = av; arState = st; camView = cv
+            try { av.resumeAr() } catch (e: Throwable) { say("AR: ${e.message}") }
+            say(getString(R.string.ar_hint))
+            refresh(); return
+        }
         val pv = androidx.camera.view.PreviewView(this)
         val cv = CameraBoardView(this).apply { game = g; humanId = 0; onTap = { r, c -> tapped(r, c) } }
         stage.removeAllViews()
@@ -544,17 +563,39 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         else if (code == 7) say(getString(R.string.cam_denied))
     }
 
+    private fun setBoard() {
+        val st = arState
+        if (st == null) { camView?.setHeadingHere(); say(getString(R.string.board_set)); return }
+        if (!st.tracking) { say(getString(R.string.ar_look)); return }
+        when (st.mark(g.n, camView?.eyeM ?: 1.4f)) {
+            1 -> say(getString(R.string.ar_mark2))
+            else -> { camView?.squareM = st.s; say(getString(R.string.ar_ready, (st.s * 100).toInt())) }
+        }
+        camView?.invalidate()
+    }
+
     /** Walk mode: the player stands on the picked square and taps "I'm here"; then the move counts. */
     private fun arrive() {
         if (pendingMove < 0 || !turnOpen) return
         val r = pendingMove / g.n; val c = pendingMove % g.n
+        val st = arState
+        val here = st?.squareHere(g.n)
+        if (st != null && here != null && (Math.abs(here[0] - r) + Math.abs(here[1] - c)) > 0 && !hereWarned) {
+            hereWarned = true
+            say(getString(R.string.ar_elsewhere, here[0] + 1, here[1] + 1)); return
+        }
+        hereWarned = false
         pendingMove = -1
         guard { g.move(me, r, c) }
         endHumanTurn()
     }
 
-    override fun onPause() { super.onPause(); camView?.stop() }
-    override fun onResume() { super.onResume(); if (cameraOn) camView?.start() }
+    override fun onPause() { super.onPause(); camView?.stop(); arView?.pauseAr() }
+    override fun onResume() {
+        super.onResume()
+        if (!cameraOn) return
+        if (arView != null) try { arView?.resumeAr() } catch (e: Throwable) { say("AR: ${e.message}") } else camView?.start()
+    }
 
-    override fun onDestroy() { finished = true; ui.removeCallbacksAndMessages(null); camView?.stop(); super.onDestroy() }
+    override fun onDestroy() { finished = true; ui.removeCallbacksAndMessages(null); camView?.stop(); arView?.closeAr(); super.onDestroy() }
 }

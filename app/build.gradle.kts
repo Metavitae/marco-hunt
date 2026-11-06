@@ -11,8 +11,8 @@ android {
         applicationId = "com.metavitae.marcohunt"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.5"
+        versionCode = 6
+        versionName = "0.6"
     }
 
     // Test-only key (not a release key) kept in the repo so every CI build can
@@ -42,4 +42,5 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
+    implementation("com.google.ar:core:1.44.0")
 }
