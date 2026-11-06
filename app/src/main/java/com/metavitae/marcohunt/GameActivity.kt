@@ -515,6 +515,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             cameraOn = false; pendingMove = -1
             camView?.stop(); arView?.pauseAr(); arView?.closeAr(); arView = null; arState = null
             stage.removeAllViews()
+            dockButtons()
             stage.addView(board); refresh(); return
         }
         if (checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -533,6 +534,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             stage.addView(av, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, h))
             stage.addView(cv, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, h))
             arView = av; arState = st; camView = cv
+            floatButtons(h)
             try { av.resumeAr() } catch (e: Throwable) { say("AR: ${e.message}") }
             say(getString(R.string.ar_hint))
             refresh(); return
@@ -543,6 +545,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         stage.addView(pv, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, h))
         stage.addView(cv, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, h))
         preview = pv; camView = cv
+        floatButtons(h)
         val future = androidx.camera.lifecycle.ProcessCameraProvider.getInstance(this)
         future.addListener({
             try {
@@ -561,6 +564,25 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         super.onRequestPermissionsResult(code, perms, results)
         if (code == 7 && results.isNotEmpty() && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) toggleCamera()
         else if (code == 7) say(getString(R.string.cam_denied))
+    }
+
+    /** In camera mode the buttons float at the bottom of the picture, so nothing needs a scroll. */
+    private fun floatButtons(h: Int) {
+        (camBtn.parent as? android.view.ViewGroup)?.let { row ->
+            (row.parent as? android.view.ViewGroup)?.removeView(row)
+            val lp = android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.WRAP_CONTENT)
+            lp.gravity = Gravity.BOTTOM; lp.bottomMargin = dp(12); lp.leftMargin = dp(8); lp.rightMargin = dp(8)
+            stage.addView(row, lp)
+        }
+    }
+
+    /** Back on the map: the buttons return under the board. */
+    private fun dockButtons() {
+        (camBtn.parent as? android.view.ViewGroup)?.let { row ->
+            (row.parent as? android.view.ViewGroup)?.removeView(row)
+            val root = stage.parent as android.view.ViewGroup
+            root.addView(row, root.indexOfChild(stage) + 2)
+        }
     }
 
     private fun setBoard() {
