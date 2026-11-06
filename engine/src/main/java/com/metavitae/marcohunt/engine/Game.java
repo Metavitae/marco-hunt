@@ -26,6 +26,8 @@ public final class Game {
         default void onReveal(Game g, Player marco) {}                      // public: Spotlight
         default void onFight(Game g, Player a, Player b, int winner) {}     // public: winner id or -1
         default void onOver(Game g) {}
+        default void onOpen(Game g, Player p, Content what) {}             // public: a decorated square was opened (what it held)
+        default void onPeril(Game g, Player p, Content peril, int strength, boolean blocked) {} // public
     }
 
     public static final class Echo {
@@ -38,6 +40,9 @@ public final class Game {
     public final int n;
     public final Content[] content;
     public final boolean[] opened;
+    /** Squares Marco filled by casting (for the end-of-game reveal: luck vs Marco). */
+    public final boolean[] castByMarco;
+    public int[] trapsFromMarco, trapsFromLuck;
     public int spotlight = -1;
     public int oracle = -1;
     public Content oracleTaskItem = Content.SHIELD;
@@ -81,9 +86,11 @@ public final class Game {
         if (rules.players < 2) throw new IllegalArgumentException("need 2 players");
         content = new Content[n * n];
         opened = new boolean[n * n];
+        castByMarco = new boolean[n * n];
         for (int i = 0; i < content.length; i++) content[i] = Content.NONE;
         landmarks = makeLandmarks(n);
         setupPlayers(classes);
+        trapsFromMarco = new int[players.size()]; trapsFromLuck = new int[players.size()];
         if (rules.specials) setupSquares();
     }
 
@@ -301,6 +308,8 @@ public final class Game {
         if (unopenedDecorated(i)) {
             opened[i] = true;
             Content ct = content[i];
+            for (Listener l : listeners) l.onOpen(this, p, ct);
+            if (ct.isPeril()) { if (castByMarco[i]) trapsFromMarco[p.id]++; else trapsFromLuck[p.id]++; }
             if (ct == Content.ORACLE) { opened[i] = true; oracleKnown = true; oracleFoundRound = round; }
             else if (ct.isPowerUp()) p.items.add(ct);
             else if (ct.isPeril()) applyPeril(p, ct);
@@ -332,13 +341,16 @@ public final class Game {
 
     private void applyPeril(Player p, Content peril) {
         if (p.items.remove(Content.SHIELD) || p.shieldUp) {
-            p.shieldUp = false; perilsBlocked++; return;
+            p.shieldUp = false; perilsBlocked++;
+            for (Listener l : listeners) l.onPeril(this, p, peril, 0, true);
+            return;
         }
         int s = Types.perilStrength(Types.perilFit(p.cls, peril), rollStrength());
         Player knight = bulwarkKnight(p);
         if (knight != null) { s = Math.max(0, s - 2); knight.skillReadyAt = round + 2; }
-        if (s == 0) { perilsBlocked++; return; }
+        if (s == 0) { perilsBlocked++; for (Listener l : listeners) l.onPeril(this, p, peril, 0, true); return; }
         perilsHit++;
+        for (Listener l : listeners) l.onPeril(this, p, peril, s, false);
         p.vigor = Math.max(0, p.vigor - 1);
         switch (peril) {
             case SERPENT: slideBack(p, s); break;
@@ -556,6 +568,7 @@ public final class Game {
         if (!at(square / n, square % n).isEmpty()) throw new IllegalArgumentException("occupied");
         if (!m.hand.remove(item)) throw new IllegalArgumentException("not in hand");
         content[square] = item;
+        castByMarco[square] = true;
         lastCastRound = round;
         casts++;
     }

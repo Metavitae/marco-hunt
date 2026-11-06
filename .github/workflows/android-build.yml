@@ -1,0 +1,40 @@
+name: Android build
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Rules tests (72 checks, 1000 AI games)
+        run: |
+          mkdir -p engine/build/main engine/build/test
+          javac -d engine/build/main $(find engine/src/main -name "*.java")
+          javac -cp engine/build/main -d engine/build/test engine/src/test/java/com/metavitae/marcohunt/engine/Tests.java
+          java -cp engine/build/main:engine/build/test com.metavitae.marcohunt.engine.Tests
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcohunt-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
