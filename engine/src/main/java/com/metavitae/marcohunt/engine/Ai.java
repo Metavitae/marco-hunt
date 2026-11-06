@@ -95,17 +95,12 @@ public final class Ai implements Game.Listener {
         b.obs = 0; b.singleStreak = 0; b.lastSingle = -1; b.lastCand = null;
     }
 
-    @Override public void onOracle(Game g, Player p, int lm, int about) {
+    @Override public void onOracle(Game g, Player p, int mark, int about) {
         Brain b = brains[p.id];
-        int[] L = g.landmarks[lm];
+        int[] M = g.marks[mark];
         for (Player s : g.players) {
             if (s == p || b.notMarco[s.id]) continue;
-            int nearest = 0;
-            for (int i = 1; i < g.landmarks.length; i++)
-                if (s.dist(g.landmarks[i][0], g.landmarks[i][1]) < s.dist(g.landmarks[nearest][0], g.landmarks[nearest][1])) nearest = i;
-            boolean ok = Math.abs(s.dist(L[0], L[1]) - about) <= g.rules.oracleTolerance
-                    && s.dist(L[0], L[1]) == s.dist(g.landmarks[nearest][0], g.landmarks[nearest][1]);
-            if (!ok) b.hard[s.id]++;
+            if (Math.abs(s.dist(M[0], M[1]) - about) > g.rules.oracleTolerance) b.hard[s.id]++;
         }
     }
 

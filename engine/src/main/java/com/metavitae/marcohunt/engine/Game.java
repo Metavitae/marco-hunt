@@ -20,7 +20,7 @@ public final class Game {
         default void onCompass(Game g, Player p, boolean rows, int value) {} // private
         default void onDivination(Game g, Player p, int ar, int ac, int br, int bc, int answer) {} // private: -1 A nearer, 1 B nearer, 0 same
         default void onSpyglass(Game g, Player p, boolean echoFound) {}     // private
-        default void onOracle(Game g, Player p, int landmark, int about) {} // private to the team
+        default void onOracle(Game g, Player p, int mark, int about) {}     // private to the team: marks[mark], about d squares
         default void onNotMarco(Game g, Player q) {}                        // public: q was landed on and fought or traded, so q is not Marco
         default void onWrongAccusation(Game g, Player accuser, Player q) {} // private to the accuser
         default void onReveal(Game g, Player marco) {}                      // public: Spotlight
@@ -46,7 +46,14 @@ public final class Game {
     public int spotlight = -1;
     public int oracle = -1;
     public Content oracleTaskItem = Content.SHIELD;
-    public final int[][] landmarks;
+    /** The Oracle's big landmarks (6, placed at random each game) and the small marks near them: {row, col, type, parent landmark}. */
+    public int[][] landmarks;
+    public int[][] marks;
+    /** Squares held by landmarks and marks: never decorated. */
+    public boolean[] reserved;
+    /** Marco's square at the end of each round (the Oracle speaks about where he used to be). */
+    public final List<int[]> marcoTrail = new ArrayList<>();
+    public static final int MARK_TYPES = 4; // fountain, falcon perch, palm, shrine
     public final List<Player> players = new ArrayList<>();
     public Player marco;
     public final List<Listener> listeners = new ArrayList<>();
@@ -88,21 +95,60 @@ public final class Game {
         opened = new boolean[n * n];
         castByMarco = new boolean[n * n];
         for (int i = 0; i < content.length; i++) content[i] = Content.NONE;
-        landmarks = makeLandmarks(n);
         setupPlayers(classes);
+        placeLandmarks();
         trapsFromMarco = new int[players.size()]; trapsFromLuck = new int[players.size()];
         if (rules.specials) setupSquares();
     }
 
     // ------------------------------------------------------------------ setup
 
-    static int[][] makeLandmarks(int n) {
-        double[] rows = {0.2, 0.5, 0.8}, cols = {0.25, 0.75};
-        int[][] lm = new int[6][];
-        int k = 0;
-        for (double fr : rows) for (double fc : cols)
-            lm[k++] = new int[]{(int) Math.round(fr * (n - 1)), (int) Math.round(fc * (n - 1))};
-        return lm;
+    /**
+     * Randomizing rule (founder, Nov 6): everything is placed at random each game, except that the riddle pieces follow a rule:
+     * 6 landmarks spread apart, and near each one a few small marks of different types, each nearer to its own landmark than to
+     * any other. So "near X there is a Y" always points at exactly one square.
+     */
+    private void placeLandmarks() {
+        reserved = new boolean[n * n];
+        boolean[] start = new boolean[n * n];
+        for (Player p : players) start[idx(p.r, p.c)] = true;
+        int count = 6;
+        landmarks = new int[count][];
+        int lo = n >= 6 ? 1 : 0, hi = n >= 6 ? n - 2 : n - 1;
+        for (int spacing = Math.max(3, n / 3); spacing >= 1; spacing--) {
+            int placed = 0;
+            for (int tries = 0; tries < 400 && placed < count; tries++) {
+                int r = lo + rng.nextInt(hi - lo + 1), c = lo + rng.nextInt(hi - lo + 1);
+                if (start[idx(r, c)]) continue;
+                boolean ok = true;
+                for (int k = 0; k < placed; k++) if (Math.abs(landmarks[k][0] - r) + Math.abs(landmarks[k][1] - c) < spacing) ok = false;
+                if (ok) landmarks[placed++] = new int[]{r, c};
+            }
+            if (placed == count) break;
+        }
+        for (int[] L : landmarks) reserved[idx(L[0], L[1])] = true;
+        int perLandmark = n <= 10 ? 2 : 3;
+        List<int[]> ms = new ArrayList<>();
+        for (int k = 0; k < count; k++) {
+            List<Integer> types = new ArrayList<>();
+            for (int t = 0; t < MARK_TYPES; t++) types.add(t);
+            rng.shuffle(types);
+            List<int[]> near = new ArrayList<>();
+            for (int dr = -2; dr <= 2; dr++) for (int dc = -2; dc <= 2; dc++) {
+                int r = landmarks[k][0] + dr, c = landmarks[k][1] + dc, d = Math.abs(dr) + Math.abs(dc);
+                if (d < 1 || d > 2 || !onBoard(r, c) || reserved[idx(r, c)] || start[idx(r, c)]) continue;
+                boolean own = true;
+                for (int j = 0; j < count; j++) if (j != k && Math.abs(landmarks[j][0] - r) + Math.abs(landmarks[j][1] - c) <= d) own = false;
+                if (own) near.add(new int[]{r, c});
+            }
+            rng.shuffle(near);
+            for (int t = 0; t < perLandmark && t < near.size(); t++) {
+                int[] sq = near.get(t);
+                reserved[idx(sq[0], sq[1])] = true;
+                ms.add(new int[]{sq[0], sq[1], types.get(t), k});
+            }
+        }
+        marks = ms.toArray(new int[0][]);
     }
 
     /** Team size used for this headcount: 2..4, at least two teams, or 0 (everyone alone). Random among the options. */
@@ -158,6 +204,7 @@ public final class Game {
     private void setupSquares() {
         boolean[] taken = new boolean[n * n];
         for (Player p : players) taken[idx(p.r, p.c)] = true;
+        for (int i = 0; i < n * n; i++) if (reserved[i]) taken[i] = true; // landmarks and marks stay plain
         List<Integer> free = new ArrayList<>();
         for (int i = 0; i < n * n; i++) if (!taken[i]) free.add(i);
         rng.shuffle(free);
@@ -612,10 +659,12 @@ public final class Game {
         if (key < teamAskedOracle.length) teamAskedOracle[key] = true;
         oracleAnswers++;
         if (firstOracleRound < 0) firstOracleRound = round;
+        // "Near X there is Y where Marco used to be; now he is about d squares from it."
+        int[] was = marcoTrail.size() >= 2 ? marcoTrail.get(marcoTrail.size() - 2) : new int[]{marco.r, marco.c};
         int best = 0;
-        for (int i = 1; i < landmarks.length; i++)
-            if (marco.dist(landmarks[i][0], landmarks[i][1]) < marco.dist(landmarks[best][0], landmarks[best][1])) best = i;
-        int d = marco.dist(landmarks[best][0], landmarks[best][1]);
+        for (int i = 1; i < marks.length; i++)
+            if (Math.abs(marks[i][0] - was[0]) + Math.abs(marks[i][1] - was[1]) < Math.abs(marks[best][0] - was[0]) + Math.abs(marks[best][1] - was[1])) best = i;
+        int d = marco.dist(marks[best][0], marks[best][1]);
         int about = Math.max(0, d + rng.nextInt(2 * rules.oracleTolerance + 1) - rules.oracleTolerance);
         for (Player q : team) for (Listener l : listeners) l.onOracle(this, q, best, about);
     }
@@ -642,6 +691,7 @@ public final class Game {
         if (turnIndex >= players.size()) {
             turnIndex = 0;
             stepsByRound.add(totalSteps);
+            marcoTrail.add(new int[]{marco.r, marco.c});
             if (rules.turnLimit > 0 && round >= rules.turnLimit) { finish(WinBy.TIME, null); return; }
             round++;
             if (round > rules.maxRounds) { finish(WinBy.TIME, null); }

@@ -18,6 +18,8 @@ class BoardView(ctx: Context) : View(ctx) {
     var picked: Set<Int> = emptySet()
     var revealedMarco = -1
     var onTap: ((Int, Int) -> Unit)? = null
+    var onLongTap: ((Int, Int) -> Unit)? = null
+    private var downAt = 0L
 
     private val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Art.INK; alpha = 90; strokeWidth = 1.5f }
     private val litPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Art.GOLD; alpha = 120 }
@@ -44,9 +46,11 @@ class BoardView(ctx: Context) : View(ctx) {
             c.drawLine(0f, k * s, width.toFloat(), k * s, grid)
             c.drawLine(k * s, 0f, k * s, height.toFloat(), grid)
         }
-        // landmarks (for the Oracle's riddles)
+        // the Oracle's landmarks and the small marks near them (placed at random each game)
         for ((k, lm) in g.landmarks.withIndex())
-            Art.draw(context, c, Art.LANDMARK[k], rect(lm[0], lm[1], s, s * 0.12f), 0x33C9A227, "L${k + 1}")
+            Art.draw(context, c, Art.LANDMARK[k], rect(lm[0], lm[1], s, s * 0.06f), 0x66C9A227, Art.LANDMARK_LABEL[k])
+        for (m in g.marks)
+            Art.draw(context, c, Art.MARK[m[2]], rect(m[0], m[1], s, s * 0.22f), 0x553F8A74, Art.MARK_LABEL[m[2]], round = true)
         // decorated squares: all look alike until opened
         for (i in 0 until g.n * g.n) {
             if (!g.decorated(i)) continue
@@ -83,10 +87,13 @@ class BoardView(ctx: Context) : View(ctx) {
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
         val g = game ?: return false
+        if (e.action == MotionEvent.ACTION_DOWN) downAt = e.eventTime
         if (e.action == MotionEvent.ACTION_UP) {
             val s = cell()
             val c = (e.x / s).toInt(); val r = (e.y / s).toInt()
-            if (r in 0 until g.n && c in 0 until g.n) onTap?.invoke(r, c)
+            if (r in 0 until g.n && c in 0 until g.n) {
+                if (e.eventTime - downAt > 450) onLongTap?.invoke(r, c) else onTap?.invoke(r, c)
+            }
             performClick()
         }
         return true

@@ -51,5 +51,8 @@ object Art {
     const val BOARD = "board_map"
     const val ORACLE = "square_oracle"
     const val SPOTLIGHT = "square_spotlight"
-    val LANDMARK = arrayOf("landmark_fountain", "landmark_lighthouse", "landmark_labyrinth", "landmark_bridge", "landmark_caravan", "landmark_town")
+    val LANDMARK = arrayOf("landmark_labyrinth", "landmark_lighthouse", "landmark_town", "landmark_bridge", "landmark_caravan", "landmark_fleece")
+    val LANDMARK_LABEL = arrayOf("LAB", "LGT", "TWN", "BRG", "CMP", "FLC")
+    val MARK = arrayOf("mark_fountain", "mark_perch", "mark_palm", "mark_shrine")
+    val MARK_LABEL = arrayOf("≈", "⌃", "♣", "⌂")
 }

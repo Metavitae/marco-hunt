@@ -43,6 +43,7 @@ public final class Tests {
         determinism();
         thousandGames();
         handCheckTinyBoard();
+        riddlePlacement();
         System.out.println("tests passed: " + pass + ", failed: " + fail);
         if (fail > 0) System.exit(1);
     }
@@ -327,6 +328,31 @@ public final class Tests {
         }
         check(broken == 0, "1000 AI games keep every rule (" + broken + " broke)");
         check(crashed == 0, "1000 AI games without a crash (" + crashed + " crashed)");
+    }
+
+    /** Randomizing rule: layouts differ per seed; every (landmark, mark type) pair is unique; marks sit nearest their own landmark. */
+    static void riddlePlacement() {
+        boolean unique = true, nearest = true, plain = true, six = true;
+        java.util.Set<String> layouts = new java.util.HashSet<>();
+        for (int n : new int[]{10, 15, 20, 30}) for (long seed = 1; seed <= 40; seed++) {
+            Rules r = new Rules(); r.n = n; r.players = 4;
+            Game g = new Game(r, seed);
+            if (g.landmarks.length != 6 || g.landmarks[5] == null) six = false;
+            java.util.Set<String> pairs = new java.util.HashSet<>();
+            for (int[] m : g.marks) {
+                if (!pairs.add(m[3] + ":" + m[2])) unique = false;
+                int own = Math.abs(g.landmarks[m[3]][0] - m[0]) + Math.abs(g.landmarks[m[3]][1] - m[1]);
+                for (int k = 0; k < 6; k++) if (k != m[3] && Math.abs(g.landmarks[k][0] - m[0]) + Math.abs(g.landmarks[k][1] - m[1]) <= own) nearest = false;
+                if (g.decorated(g.idx(m[0], m[1]))) plain = false;
+            }
+            for (int[] L : g.landmarks) if (g.decorated(g.idx(L[0], L[1]))) plain = false;
+            layouts.add(java.util.Arrays.deepToString(g.landmarks) + java.util.Arrays.toString(g.content));
+        }
+        check(six, "six landmarks every game");
+        check(unique, "each riddle (near X there is Y) has exactly one answer");
+        check(nearest, "each mark is nearer its own landmark than any other");
+        check(plain, "no decoration on a landmark or a mark");
+        check(layouts.size() == 160, "every game has its own layout (" + layouts.size() + "/160)");
     }
 
     /**

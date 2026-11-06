@@ -81,6 +81,7 @@ class GameActivity : Activity(), Game.Listener {
         r.players = 1 + rivals
         r.teams = false                          // no teams in solo
         r.dieSides = if (n <= 10) 6 else 10      // Task S defaults
+        r.oracleTolerance = if (n >= 20) 2 else 1 // Task O: about d, give or take 1 (2 on big boards)
         // solo turn limits (CC's solo run, Marco wins about 1 in 4 against the whole table)
         val base10 = intArrayOf(10, 8, 6, 5); val base15 = intArrayOf(10, 8, 7, 6)
         val t = (if (n <= 10) base10 else base15)[(r.players - 3).coerceIn(0, 3)]
@@ -110,7 +111,7 @@ class GameActivity : Activity(), Game.Listener {
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Art.PARCHMENT); setPadding(dp(8), dp(8), dp(8), dp(8)) }
         status = text(15f, bold = true)
         root.addView(status)
-        board = BoardView(this).apply { game = g; humanId = 0; onTap = { r, c -> tapped(r, c) } }
+        board = BoardView(this).apply { game = g; humanId = 0; onTap = { r, c -> tapped(r, c) }; onLongTap = { r, c -> readMap(r, c) } }
         root.addView(board, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         signal = text(20f, bold = true).apply { gravity = Gravity.CENTER; setPadding(0, dp(6), 0, dp(6)) }
         root.addView(signal)
@@ -131,6 +132,7 @@ class GameActivity : Activity(), Game.Listener {
         root.addView(coach)
         log = text(13f)
         root.addView(log)
+        root.addView(text(12f).apply { text = getString(R.string.long_press) })
         setContentView(ScrollView(this).apply { setBackgroundColor(Art.PARCHMENT); addView(root) })
     }
 
@@ -162,7 +164,10 @@ class GameActivity : Activity(), Game.Listener {
         }
         if (g.beginTurn()) {
             status.text = getString(R.string.their_turn, name(p))
+            val fr = p.r; val fc = p.c
             try { ai.playTurn(p) } catch (e: RuntimeException) { say("AI: ${e.message}") }
+            val d = Math.abs(p.r - fr) + Math.abs(p.c - fc)
+            if (!g.over) say(getString(R.string.moved, name(p), d))
         } else say(getString(R.string.frozen, name(p)))
         refresh()
         ui.postDelayed({ loop() }, if (g.over) 300 else 750)
@@ -292,9 +297,23 @@ class GameActivity : Activity(), Game.Listener {
     override fun onSpyglass(g: Game, p: Player, echoFound: Boolean) {
         if (p.id == 0) say(getString(if (echoFound) R.string.echo_caught else R.string.echo_none))
     }
-    override fun onOracle(g: Game, p: Player, landmark: Int, about: Int) {
-        if (p.id == 0) say(getString(R.string.oracle_says, lmName(landmark), about))
+    override fun onOracle(g: Game, p: Player, mark: Int, about: Int) {
+        if (p.id != 0) return
+        val m = g.marks[mark]
+        val tpl = intArrayOf(R.string.rd0, R.string.rd1, R.string.rd2)[(g.round + mark) % 3]
+        val riddle = getString(tpl, lmName(m[3]), markName(m[2]), markVerb(m[2]), about)
+        say(riddle)
+        ui.post { AlertDialog.Builder(this).setTitle(R.string.oracle_title).setMessage(riddle).setPositiveButton("OK", null).show() }
     }
+
+    /** Long-press: read the map (landmark or mark names), so the riddles can be solved. */
+    private fun readMap(r: Int, c: Int) {
+        for ((k, lm) in g.landmarks.withIndex()) if (lm[0] == r && lm[1] == c) { say(getString(R.string.here_is, lmName(k))); return }
+        for (m in g.marks) if (m[0] == r && m[1] == c) { say(getString(R.string.here_is, getString(R.string.mark_near, markName(m[2]), lmName(m[3])))); return }
+    }
+
+    private fun markName(t: Int) = getString(intArrayOf(R.string.mk0, R.string.mk1, R.string.mk2, R.string.mk3)[t])
+    private fun markVerb(t: Int) = getString(intArrayOf(R.string.mv0, R.string.mv1, R.string.mv2, R.string.mv3)[t])
     override fun onNotMarco(g: Game, q: Player) { proven.add(q.id); say(getString(R.string.not_marco, name(q))) }
     override fun onReveal(g: Game, marco: Player) { board.revealedMarco = marco.id; say("☀ Spotlight: ${name(marco)} = Marco!") }
     override fun onFight(g: Game, a: Player, b: Player, winner: Int) {
