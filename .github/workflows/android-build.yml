@@ -27,6 +27,8 @@ jobs:
           javac -d engine/build/main $(find engine/src/main -name "*.java")
           javac -cp engine/build/main -d engine/build/test engine/src/test/java/com/metavitae/marcohunt/engine/Tests.java
           java -cp engine/build/main:engine/build/test com.metavitae.marcohunt.engine.Tests
+          javac -cp engine/build/main -d engine/build/test engine/src/test/java/com/metavitae/marcohunt/engine/SpiralTests.java
+          java -cp engine/build/main:engine/build/test com.metavitae.marcohunt.engine.SpiralTests
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -41,7 +43,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk MarcoHunt-0.18-b${{ github.run_number }}.apk
-          gh release create "b${{ github.run_number }}" MarcoHunt-0.18-b${{ github.run_number }}.apk \
-            --prerelease --title "Marco Hunt 0.18 build ${{ github.run_number }}" \
+          cp app/build/outputs/apk/debug/app-debug.apk MarcoHunt-0.19-b${{ github.run_number }}.apk
+          gh release create "b${{ github.run_number }}" MarcoHunt-0.19-b${{ github.run_number }}.apk \
+            --prerelease --title "Marco Hunt 0.19 build ${{ github.run_number }}" \
             --notes "Test build (test-only signing key). Commit ${{ github.sha }}."

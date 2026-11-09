@@ -27,6 +27,7 @@ class Tale(private val act: Activity, private val layer: FrameLayout, private va
 
     private val queue = ArrayDeque<Card>()
     private var open = false
+    private var top: View? = null
     var onShow: ((Card) -> Unit)? = null
 
     fun busy() = open || queue.isNotEmpty()
@@ -78,10 +79,14 @@ class Tale(private val act: Activity, private val layer: FrameLayout, private va
         val lp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
         lp.leftMargin = dp(20); lp.rightMargin = dp(20)
         layer.addView(box, lp)
+        top = box
         // enter: a short rise and fade (ease-out, 220 ms), so the card reads as "new news"
         box.alpha = 0f; box.translationY = dp(24).toFloat(); box.scaleX = 0.96f; box.scaleY = 0.96f
         box.animate().alpha(1f).translationY(0f).scaleX(1f).scaleY(1f).setDuration(220).setInterpolator(DecelerateInterpolator()).start()
     }
+
+    /** Closes the open card, for a button that has its own action. */
+    fun dismiss() { top?.let { close(it) } }
 
     private fun close(box: View) {
         box.isEnabled = false

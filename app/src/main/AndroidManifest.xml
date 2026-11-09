@@ -24,6 +24,8 @@
         </activity>
         <activity android:name=".MainActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".GameActivity" android:exported="false" android:screenOrientation="portrait" />
+        <!-- the flat spiral race; exported so CC can start it over adb when testing (it asks for nothing and reads nothing) -->
+        <activity android:name=".SpiralActivity" android:exported="true" android:screenOrientation="portrait" />
         <!-- the test lab; exported so CC can start the automatic test over adb (it shows and saves only test results) -->
         <receiver android:name=".MarcoWidget" android:exported="true" android:label="@string/app_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>

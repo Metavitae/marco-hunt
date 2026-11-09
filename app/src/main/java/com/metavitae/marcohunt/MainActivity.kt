@@ -17,7 +17,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 
-/** Home: Solo Hunt, the guided hunt, (host and join later), About, language. */
+/** Home: the spiral race, how to play, the old hunt, (host and join later), About, language. */
 class MainActivity : Activity() {
 
     override fun attachBaseContext(base: Context) = super.attachBaseContext(Lang.wrap(base))
@@ -46,11 +46,12 @@ class MainActivity : Activity() {
             text = getString(R.string.tagline); textSize = 17f; setTextColor(Art.INK)
             typeface = Typeface.SERIF; gravity = Gravity.CENTER; setPadding(0, dp(8), 0, dp(32))
         })
+        col.addView(button(R.string.sp_play) { startActivity(Intent(this, SpiralActivity::class.java)) })
+        col.addView(button(R.string.sp_howto) { startActivity(Intent(this, SpiralActivity::class.java).putExtra("howto", true)) })
         if (Camp.exists(this)) col.addView(button(R.string.camp_continue) {
             startActivity(Intent(this, GameActivity::class.java).putExtra("resume", true))
         })
-        col.addView(button(R.string.solo) { startGame((0..3).random(), 10, 0, 3, false) })
-        col.addView(button(R.string.tutorial) { startGame((0..3).random(), 10, 0, 3, true) })
+        col.addView(button(R.string.sp_old) { startGame((0..3).random(), 10, 0, 3, false) })
         col.addView(button(R.string.host, enabled = false) { soon() })
         col.addView(button(R.string.join, enabled = false) { soon() })
         col.addView(button(R.string.about) {
