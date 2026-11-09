@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Marco Hunt</string>
-    <string name="tagline">Camina dentro de un mapa antiguo y caza al viajero escondido entre ustedes.</string>
-    <string name="solo">Caza en solitario</string>
+    <string name="tagline">Camina dentro de un mapa antiguo y caza al viajero escondido.</string>
+    <string name="solo">Jugar</string>
     <string name="tutorial">Cómo jugar (caza guiada)</string>
     <string name="host">Crear partida</string>
     <string name="join">Unirse con código</string>
@@ -130,7 +130,7 @@
     <string name="board_set">Tablero fijado: está frente a ti.</string>
     <string name="walk_there">Camina a la casilla iluminada y toca Estoy aquí.</string>
     <string name="cam_why">La cámara muestra el tablero en el suelo. Marco Hunt usa la cámara solo para eso y no guarda nada.</string>
-    <string name="cam_hint">Mira hacia donde quieras el tablero y toca Fijar tablero: aparece frente a ti. Levanta la vista seguido y mira por dónde caminas.</string>
+    <string name="cam_hint">En este teléfono te quedas en un lugar y tu pieza camina por ti. Mira hacia donde quieras el tablero y toca Fijar tablero: aparece frente a ti.</string>
     <string name="cam_denied">Sin cámara: el tablero de mapa sigue funcionando.</string>
     <string name="lbl_travellers">Viajeros</string>
     <string name="lbl_chronicle">Crónica</string>
@@ -156,7 +156,7 @@
     <string name="your_turn_banner">¡Tu turno! Sacaste %1$d</string>
     <string name="walked">caminó %1$d casillas</string>
     <string name="stayed">se quedó quieto</string>
-    <string name="not_lit">Solo puedes caminar a una casilla dorada: exactamente %1$d pasos, sin diagonales.</string>
+    <string name="not_lit">Solo puedes caminar a una casilla dorada: hasta %1$d pasos, sin diagonales.</string>
     <string name="frozen_title">¡Congelado!</string>
     <string name="frozen_you">El frío todavía te tiene atrapado: pierdes este turno.</string>
     <string name="rest_done">Descansas y recuperas un corazón: %1$s</string>
@@ -175,7 +175,7 @@
     <string name="sig_cold">Marco está lejos: a más de %1$d casillas de ti.</string>
     <string name="sig_knight">(Como Caballero, sientes lo tibio como frío.)</string>
     <string name="sig_card_title">Tu señal: %1$s</string>
-    <string name="sig_card_why">Después de cada turno tuyo recibes una señal, medida de ti a Marco, en pasos (sin diagonales). Compárala con dónde está cada viajero: ✓ encaja con esta señal, ✗ no encaja. Pero Marco puede poner una señal falsa (un eco), así que confía en varias señales, no en una. Toca el nombre de un viajero para leer más.</string>
+    <string name="sig_card_why">Después de cada caminata recibes una señal: qué tan lejos estás de Marco, en pasos sin diagonales. Más caliente es que te acercaste, más frío que te alejaste. Él se mueve despacio. Una vez en el juego puede mandar una señal falsa, así que confía en varias, no en una.</string>
     <string name="trend_up">Más caliente que el turno pasado: te acercaste.</string>
     <string name="trend_down">Más frío que el turno pasado: te alejaste.</string>
     <string name="trend_same">Igual que el turno pasado.</string>
@@ -209,7 +209,7 @@
     <string name="p_heart">Pierdes un corazón: %1$s</string>
     <string name="p_blocked_shield">¡Tu Escudo lo detuvo! El Escudo ya se usó.</string>
     <string name="p_blocked_weak">Esta vez no te pudo dañar: tu clase es fuerte contra él.</string>
-    <string name="p_why">Las decoraciones pueden esconder peligros. Algunos son suerte, otros son trampas que puso Marco. Un Escudo en tu morral detiene uno.</string>
+    <string name="p_why">Las decoraciones pueden esconder peligros. Un Escudo detiene uno.</string>
     <string name="hearts_why">Corazones: con todos completos puedes escuchar al Oráculo. Descansar (quedarte un turno entero) te devuelve uno.</string>
     <string name="r_fight">peleó con %1$s: %2$s</string>
     <string name="r_fight_won">ganó %1$s</string>
@@ -221,13 +221,13 @@
     <string name="r_peril_hit">recibió el golpe de %1$s</string>
     <string name="r_peril_blocked">se libró de %1$s</string>
     <string name="found_title">¡Encontraste: %1$s!</string>
-    <string name="in_sac">Ahora está en tu morral (abajo en la pantalla). Tócalo en tu turno para usarlo: gasta tu 1 acción. Déjalo presionado para leer esto otra vez.</string>
-    <string name="shield_sac">Está en tu morral y funciona solo: detiene el próximo peligro que te toque.</string>
+    <string name="in_sac">Ya está en tu saco (abajo en la pantalla). Tócalo en tu turno, antes de caminar. Mantenlo presionado para leer esto otra vez.</string>
+    <string name="shield_sac">Está en tu saco y funciona solo.</string>
     <string name="oracle_found_title">¡Encontraste el Oráculo!</string>
     <string name="oracle_found">Los astrólogos del Kan viven en esta casilla. Párate aquí con todos tus corazones y te leerán un acertijo sobre por dónde caminó Marco.</string>
     <string name="nothing_here">Vacía: esta vez no hay nada.</string>
-    <string name="d_leap">Salto: úsalo antes de caminar. Ganas pasos extra este turno (una tirada de dado, +2 si va con tu clase).</string>
-    <string name="d_shield">Escudo: detiene el próximo peligro que te toque. En una pelea suma +2 si va con tu clase.</string>
+    <string name="d_leap">Salto: úsalo antes de caminar. Tienes pasos extra este turno.</string>
+    <string name="d_shield">Escudo: funciona solo. Detiene el siguiente peligro, o que un viajero te quite un ayudante. Luego se gasta.</string>
     <string name="d_spyglass">Catalejo: Marco puede falsear tu señal con un eco (un señuelo). El Catalejo te dice si lo está haciendo ahora, y lo rompe.</string>
     <string name="d_falcon">Halcón: te dice hacia dónde está Marco: norte, este, sur u oeste.</string>
     <string name="d_compass">Brújula: te dice exactamente a cuántas filas (o columnas) de ti está Marco.</string>
@@ -239,9 +239,9 @@
     <string name="tr_unknown">Todavía no hay señal.</string>
     <string name="tr_dist">A %1$d pasos de ti.</string>
     <string name="tw_title">Empieza la caza</string>
-    <string name="tw">Tú eres la ★. Tres viajeros recorren el mapa contigo, y uno de ellos es Marco en secreto.\n\nEncuéntralo: cae en su casilla, o acúsalo (un intento por partida).</string>
+    <string name="tw">Tú eres la ★. Marco está escondido en algún lugar de este tablero y no puedes verlo.\n\nDespués de cada caminata, la señal dice CALIENTE, TIBIO o FRÍO. Síguela y cae en su casilla para ganar. Otros dos viajeros también lo buscan.</string>
     <string name="tm_title">Tu jugada</string>
-    <string name="tm">El dado rojo dice cuántos pasos caminas: %1$d. Las casillas doradas son a donde te llevan exactamente %1$d pasos. Toca una.\n\nAdemás de caminar tienes 1 acción (arriba a la derecha): usar una ayuda de tu morral, tu Habilidad o Atacar.</string>
+    <string name="tm">El dado rojo es cuánto puedes caminar: hasta %1$d pasos, sin diagonales. Las casillas doradas muestran adónde. Toca una.\n\nSi tienes un ayudante, tócalo primero.</string>
     <string name="tr_title">Los turnos de los demás</string>
     <string name="tr">Ahora los otros viajeros caminan, uno por uno. El letrero sobre el mapa dice qué hizo cada uno.</string>
     <string name="td_title">Decoraciones</string>
@@ -255,7 +255,15 @@
     <string name="guide_outside">Estás fuera del tablero. Ve a: fila %1$d, columna %2$d.</string>
     <string name="guide_on">Estás en tu casilla: fila %1$d, columna %2$d ✓</string>
     <string name="guide_walk">Tú: fila %1$d, columna %2$d → Ve a: fila %3$d, columna %4$d</string>
-    <string name="guide_lite">Tu casilla: fila %1$d, columna %2$d. El tablero cuelga a tu alrededor.</string>
+    <string name="guide_lite">Tu pieza: fila %1$d, columna %2$d. Quédate donde estás: toca una casilla dorada y ella camina.</string>
     <string name="walked_one">caminó 1 casilla</string>
     <string name="set_first">Sacaste %1$d. Primero fija el tablero.</string>
+    <string name="reveal_hidden">Marco estaba escondido en la fila %1$d, columna %2$d.</string>
+    <string name="st_you_take">%1$s tenía un %2$s. Ahora es tuyo.</string>
+    <string name="st_you_none">%1$s no tiene ayudantes que quitarle.</string>
+    <string name="st_you_stop">El Escudo de %1$s impidió que le quitaras algo. El Escudo se gastó.</string>
+    <string name="st_they_take">%1$s cayó en tu casilla y te quitó tu %2$s.</string>
+    <string name="st_they_stop">%1$s cayó en tu casilla, pero tu Escudo lo detuvo. Se gastó.</string>
+    <string name="st_why">Cae en la casilla de un viajero y le quitas uno de sus ayudantes.</string>
+    <string name="tr_hunting">También busca a Marco, a %1$d pasos de ti. Cae en su casilla para quitarle un ayudante.</string>
 </resources>

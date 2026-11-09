@@ -25,6 +25,7 @@ public final class Tests {
 
     public static void main(String[] a) {
         countsMatchNotes();
+        simpleHunt();
         bandsMatchNotes();
         knightReadsWarmAsCold();
         exactStepsReachability();
@@ -401,5 +402,82 @@ public final class Tests {
         double share = found / (double) games;
         System.out.printf("hand check: first-move find rate %.4f (by hand 1/3 = 0.3333)%n", share);
         check(Math.abs(share - 1.0 / 3) < 0.015, "hand check matches 1/3");
+    }
+
+    /** Simple Hunt (founder, Nov 8): the rules that differ from the Full Hunt. */
+    static void simpleHunt() {
+        Game g = find(Rules.simpleHunt(10, 3), new Cls[]{Cls.KNIGHT, Cls.KNIGHT, Cls.KNIGHT}, x -> x.marco.id == 2);
+        Player h = g.players.get(0), q = g.players.get(1);
+        place(h, 0, 0); place(q, 0, 2); place(g.marco, 9, 9);
+        for (int i = 0; i < g.content.length; i++) g.opened[i] = true; // no decoration interferes with this test
+        q.items.add(Content.LEAP);
+        g.turnIndex = 0; g.beginTurn(); g.forceRoll(2);
+        g.move(h, 0, 2);
+        check(!g.over && g.fights == 0 && h.items.contains(Content.LEAP) && q.items.isEmpty() && g.steals == 1, "simple: landing takes a helper, with no fight");
+
+        g = find(Rules.simpleHunt(10, 3), new Cls[]{Cls.KNIGHT, Cls.KNIGHT, Cls.KNIGHT}, x -> x.marco.id == 2);
+        h = g.players.get(0); q = g.players.get(1);
+        place(h, 0, 0); place(q, 0, 2); place(g.marco, 9, 9);
+        for (int i = 0; i < g.content.length; i++) g.opened[i] = true;
+        q.items.add(Content.SHIELD); q.items.add(Content.LEAP);
+        g.turnIndex = 0; g.beginTurn(); g.forceRoll(2);
+        g.move(h, 0, 2);
+        check(h.items.isEmpty() && q.items.size() == 1 && q.items.contains(Content.LEAP) && g.stealsStopped == 1, "simple: a Shield stops the taking and is spent");
+
+        check(g.reading(Cls.KNIGHT, g.rules.hotMax() + 1) == Types.Band.WARM, "simple: a Knight reads warm as warm");
+
+        Game b = new Game(Rules.simpleHunt(10, 4), 5);
+        boolean clean = b.marco.hand.isEmpty() && b.spotlight < 0;
+        int helpers = 0, dangers = 0, oracles = 0;
+        for (Content c : b.content) {
+            if (c == Content.COMPASS || c == Content.SPYGLASS || c == Content.SERPENT || c == Content.SLOT) clean = false;
+            if (c.isPowerUp()) helpers++;
+            if (c.isPeril()) dangers++;
+            if (c == Content.ORACLE) oracles++;
+        }
+        check(clean && helpers == b.rules.powerUpCount() && dangers == b.rules.perilCount() && oracles == 1, "simple: only 3 helpers, 3 dangers and the Oracle on the board, all from the start");
+
+        Rules r = Rules.simpleHunt(10, 4); r.maxRounds = 300;
+        boolean ok = true, oneLie = true;
+        for (long s = 0; s < 1000; s++) {
+            Game x = new Game(r, s);
+            Ai ai = new Ai(x);
+            Types.Kind[] ks = Types.Kind.values();
+            for (Player p : x.players) p.kind = ks[(int) ((p.id + s) % ks.length)];
+            ai.playToEnd();
+            if (x.checkInvariants() != null || !x.over || x.fights != 0) ok = false;
+            if (x.echoesSet > 1) oneLie = false;
+        }
+        check(ok, "simple: 1000 AI games end, with no fights and clean invariants");
+        check(oneLie, "simple: Marco lies at most once per game");
+
+        Rules er = Rules.simpleHunt(10, 4); er.marcoErrands = 3; er.travellerErrands = 2; er.signalLag = 2; er.wrongAccuseTurns = 2; er.walkUpTo = true; er.maxRounds = 300;
+        boolean okE = true, wonByErrands = false;
+        for (long s = 0; s < 1000; s++) {
+            Game x = new Game(er, s);
+            Ai ai = new Ai(x); ai.perfectMemory = s % 2 == 0;
+            Types.Kind[] ks = Types.Kind.values();
+            for (Player p : x.players) p.kind = ks[(int) ((p.id + s) % ks.length)];
+            ai.playToEnd();
+            if (x.checkInvariants() != null || !x.over) okE = false;
+            if (x.winBy == Types.WinBy.ERRANDS) { wonByErrands = true; if (!x.errands.get(x.marco.id).isEmpty()) okE = false; }
+        }
+        check(okE && wonByErrands, "errands: 1000 AI games end cleanly and Marco can win by finishing his");
+
+        Rules pl = Rules.playable(10, 4); pl.maxRounds = 25; pl.marcoMoveChance = 0.25;
+        boolean okP = true, someoneFound = false, escaped = false;
+        for (long s = 0; s < 1000; s++) {
+            Game x = new Game(pl, s);
+            Ai ai = new Ai(x); ai.rivalSkill = 0;
+            for (Player p : x.players) p.kind = Types.Kind.FOLLOWER;
+            int[] start = {x.marco.r, x.marco.c};
+            ai.playToEnd();
+            if (x.checkInvariants() != null || !x.over || x.fights != 0 || x.winBy == Types.WinBy.ACCUSATION) okP = false;
+            if (x.winBy == Types.WinBy.LANDING) someoneFound = true; else escaped = true;
+        }
+        check(okP && someoneFound && escaped, "playable: 1000 games end by landing or time, with no fights or accusations");
+
+        Game lag = new Game(er, 3);
+        check(lag.errands.get(lag.marco.id).size() == 3 && lag.pastPos(lag.marco, 2)[0] == lag.marco.r, "errands: Marco has 3 places, and the trail starts where he stands");
     }
 }

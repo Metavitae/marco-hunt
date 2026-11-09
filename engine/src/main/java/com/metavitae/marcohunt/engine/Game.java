@@ -27,7 +27,9 @@ public final class Game {
         default void onFight(Game g, Player a, Player b, int winner) {}     // public: winner id or -1
         default void onOver(Game g) {}
         default void onOpen(Game g, Player p, Content what) {}             // public: a decorated square was opened (what it held)
-        default void onPeril(Game g, Player p, Content peril, int strength, boolean blocked) {} // public
+        default void onPeril(Game g, Player p, Content peril, int strength, boolean blocked) {}
+        /** Simple Hunt: thief landed on victim and took this helper, or null if a Shield stopped it or the sac was empty. */
+        default void onSteal(Game g, Player thief, Player victim, Content taken, boolean shieldStopped) {} // public
     }
 
     public static final class Echo {
@@ -44,6 +46,11 @@ public final class Game {
     public final boolean[] castByMarco;
     public int[] trapsFromMarco, trapsFromLuck;
     public int spotlight = -1;
+    public int steals = 0, stealsStopped = 0;
+    /** errands[player] = landmark numbers still to visit (empty when done or no errands). */
+    public List<List<Integer>> errands = new ArrayList<>();
+    /** Everyone's position at the end of each round, for a signal that follows the trail. */
+    public final List<int[][]> history = new ArrayList<>();
     public int oracle = -1;
     public Content oracleTaskItem = Content.SHIELD;
     /** The Oracle's big landmarks (6, placed at random each game) and the small marks near them: {row, col, type, parent landmark}. */
@@ -97,6 +104,7 @@ public final class Game {
         for (int i = 0; i < content.length; i++) content[i] = Content.NONE;
         setupPlayers(classes);
         placeLandmarks();
+        setupErrands();
         trapsFromMarco = new int[players.size()]; trapsFromLuck = new int[players.size()];
         if (rules.specials) setupSquares();
     }
@@ -108,6 +116,40 @@ public final class Game {
      * 6 landmarks spread apart, and near each one a few small marks of different types, each nearer to its own landmark than to
      * any other. So "near X there is a Y" always points at exactly one square.
      */
+    private void setupErrands() {
+        for (Player p : players) {
+            List<Integer> all = new ArrayList<>();
+            int want = p.isMarco ? rules.marcoErrands : rules.travellerErrands;
+            if (want > 0) {
+                for (int i = 0; i < landmarks.length; i++) all.add(i);
+                rng.shuffle(all);
+                while (all.size() > want) all.remove(all.size() - 1);
+            }
+            errands.add(all);
+        }
+    }
+
+    /** Where this player stood lag rounds ago (or as far back as the game goes). */
+    public int[] pastPos(Player q, int lag) {
+        if (lag <= 0 || history.isEmpty()) return new int[]{q.r, q.c};
+        int[][] snap = history.get(Math.max(0, history.size() - lag));
+        return snap[q.id];
+    }
+
+    /** Landing on one of your errand places ticks it off. Marco wins when his are done; a traveller earns a Falcon. */
+    private void checkErrand(Player p) {
+        List<Integer> mine = errands.isEmpty() ? null : errands.get(p.id);
+        if (mine == null || mine.isEmpty()) return;
+        for (int k = 0; k < mine.size(); k++) {
+            int[] L = landmarks[mine.get(k)];
+            if (L[0] != p.r || L[1] != p.c) continue;
+            mine.remove(k);
+            if (p.isMarco) { if (mine.isEmpty()) finish(WinBy.ERRANDS, p); }
+            else if (rules.errandReward) p.items.add(Content.FALCON);
+            return;
+        }
+    }
+
     private void placeLandmarks() {
         reserved = new boolean[n * n];
         boolean[] start = new boolean[n * n];
@@ -213,20 +255,25 @@ public final class Game {
         Content[] pu = {Content.LEAP, Content.SHIELD, Content.SPYGLASS, Content.FALCON};
         Content[] pe = {Content.SERPENT, Content.DARKNESS, Content.FREEZE, Content.SCATTER};
         int nPu = rules.powerUpCount(), nPe = rules.perilCount();
-        for (int i = 0; i < nPu; i++) pool.add(i == 0 ? Content.COMPASS : pu[(i - 1) % pu.length]);
+        if (rules.simple) {
+            pu = new Content[]{Content.LEAP, Content.SHIELD, Content.FALCON};
+            pe = new Content[]{Content.FREEZE, Content.SCATTER, Content.DARKNESS};
+            for (int i = 0; i < nPu; i++) pool.add(pu[i % pu.length]);
+        } else for (int i = 0; i < nPu; i++) pool.add(i == 0 ? Content.COMPASS : pu[(i - 1) % pu.length]);
         for (int i = 0; i < nPe; i++) pool.add(pe[i % pe.length]);
         rng.shuffle(pool);
         int k = 0;
-        int filled = Math.min(rules.filledAtStart(), pool.size());
+        // Simple Hunt: nothing is cast during the game, so every helper and danger is on the board from the start
+        int filled = rules.simple ? pool.size() : Math.min(rules.filledAtStart(), pool.size());
         int need = filled + rules.slotCount() + rules.decoyCount() + 2;
         if (need > free.size()) throw new IllegalStateException("board too small for its decorations");
         for (int i = 0; i < filled; i++) content[free.get(k++)] = pool.get(i);
         for (int i = filled; i < pool.size(); i++) marco.hand.add(pool.get(i));
-        for (int i = 0; i < rules.slotCount(); i++) content[free.get(k++)] = Content.SLOT;
+        if (!rules.simple) for (int i = 0; i < rules.slotCount(); i++) content[free.get(k++)] = Content.SLOT;
         for (int i = 0; i < rules.decoyCount(); i++) content[free.get(k++)] = Content.DECOY;
         oracle = free.get(k++);
         content[oracle] = Content.ORACLE;
-        spotlight = free.get(k++); // stays Content.NONE: hidden from everyone
+        if (!rules.simple) spotlight = free.get(k++); // stays Content.NONE: hidden from everyone
         Content[] tasks = {Content.LEAP, Content.SHIELD, Content.SPYGLASS, Content.FALCON};
         oracleTaskItem = tasks[rng.nextInt(tasks.length)];
     }
@@ -254,7 +301,7 @@ public final class Game {
     /** What a player of this class reads for this distance (the Knight's warm reads as cold). */
     public Band reading(Cls cls, int d) {
         Band b = band(d);
-        return (cls == Cls.KNIGHT && b == Band.WARM) ? Band.COLD : b;
+        return (!rules.simple && cls == Cls.KNIGHT && b == Band.WARM) ? Band.COLD : b;
     }
 
     /** The player that signals currently point at: the newest active echo's decoy, else Marco. */
@@ -270,7 +317,7 @@ public final class Game {
     public boolean reachable(Player p, int r, int c, int k) {
         if (!onBoard(r, c)) return false;
         int d = p.dist(r, c);
-        return d <= k && ((k - d) % 2 == 0);
+        return d <= k && (rules.walkUpTo || (k - d) % 2 == 0);
     }
 
     public int moveAllowance() { return moveRoll + moveExtra; }
@@ -347,12 +394,15 @@ public final class Game {
     private void arrive(Player p, boolean landing) {
         int i = idx(p.r, p.c);
         final int lr = p.r, lc = p.c;
+        checkErrand(p);
+        if (over) return;
         if (p.isMarco && i == spotlight && !marcoRevealed) {
             marcoRevealed = true; revealRound = round;
             for (Listener l : listeners) l.onReveal(this, p);
         }
         // the square's content
-        if (unopenedDecorated(i)) {
+        // a hidden Marco leaves no trace: squares he crosses stay closed
+        if (unopenedDecorated(i) && !(rules.hiddenMarco && p.isMarco)) {
             opened[i] = true;
             Content ct = content[i];
             for (Listener l : listeners) l.onOpen(this, p, ct);
@@ -368,10 +418,12 @@ public final class Game {
         if (landing && p.r == p.prevR && p.c == p.prevC) { tryOracle(p); return; }
         for (Player q : at(p.r, p.c)) {
             if (q == p || p.teammateOf(q)) continue;
+            if (!rules.landingFinds) { if (rules.simple) steal(p, q); break; } // nothing is proven by landing
             if (q.isMarco) { finish(WinBy.LANDING, p); return; }
             // q is proven not to be Marco: the landing did not find him
             for (Listener l : listeners) l.onNotMarco(this, q);
-            if (p.cls == Cls.TRAVELER && skillReady(p) && !p.items.isEmpty() && !q.items.isEmpty()) {
+            if (rules.simple) steal(p, q);
+            else if (p.cls == Cls.TRAVELER && skillReady(p) && !p.items.isEmpty() && !q.items.isEmpty()) {
                 // Trade: swap one power-up instead of fighting
                 Content mine = p.items.remove(rng.nextInt(p.items.size()));
                 Content theirs = q.items.remove(rng.nextInt(q.items.size()));
@@ -386,10 +438,38 @@ public final class Game {
         if (!over) tryOracle(p);
     }
 
+    /** Simple Hunt: the one thing that happens when you land on a traveller. */
+    private void steal(Player thief, Player victim) {
+        if (victim.items.remove(Content.SHIELD)) {
+            stealsStopped++;
+            for (Listener l : listeners) l.onSteal(this, thief, victim, null, true);
+            return;
+        }
+        Content taken = null;
+        if (!victim.items.isEmpty()) {
+            taken = victim.items.remove(rng.nextInt(victim.items.size()));
+            thief.items.add(taken);
+            steals++;
+        }
+        for (Listener l : listeners) l.onSteal(this, thief, victim, taken, false);
+    }
+
     private void applyPeril(Player p, Content peril) {
         if (p.items.remove(Content.SHIELD) || p.shieldUp) {
             p.shieldUp = false; perilsBlocked++;
             for (Listener l : listeners) l.onPeril(this, p, peril, 0, true);
+            return;
+        }
+        if (rules.simple) {
+            perilsHit++;
+            int far = peril == Content.SCATTER ? rollStrength() : 1;
+            for (Listener l : listeners) l.onPeril(this, p, peril, far, false);
+            switch (peril) {
+                case DARKNESS: p.hiddenSignals += 1; break;
+                case FREEZE: p.frozenTurns = Math.max(p.frozenTurns, 1); break;
+                case SCATTER: scatter(p, far); break;
+                default: break;
+            }
             return;
         }
         int s = Types.perilStrength(Types.perilFit(p.cls, peril), rollStrength());
@@ -533,7 +613,7 @@ public final class Game {
         needCurrent(p);
         if (moved || !p.items.remove(Content.LEAP)) throw new IllegalStateException("no leap");
         spend();
-        int s = rollStrength() + (Types.suits(p.cls, Content.LEAP, rules.secondItems) ? 2 : 0);
+        int s = rollStrength() + (!rules.simple && Types.suits(p.cls, Content.LEAP, rules.secondItems) ? 2 : 0);
         moveExtra += s;
         return s;
     }
@@ -601,6 +681,7 @@ public final class Game {
         p.accused = true;
         if (q.isMarco) { finish(WinBy.ACCUSATION, p); return true; }
         wrongAccusations++;
+        if (rules.wrongAccuseTurns > 0) p.frozenTurns = Math.max(p.frozenTurns, rules.wrongAccuseTurns);
         for (Listener l : listeners) l.onWrongAccusation(this, p, q);
         return false;
     }
@@ -649,7 +730,7 @@ public final class Game {
         if (there.size() < need) return;
         team = there; // the incantation is made by those present
         boolean fit = true;
-        for (Player q : team) if (q.vigor < rules.vigorMax) fit = false;
+        if (!rules.simple) for (Player q : team) if (q.vigor < rules.vigorMax) fit = false;
         if (!fit) {
             Player holder = null;
             for (Player q : team) if (q.items.contains(oracleTaskItem)) { holder = q; break; }
@@ -678,7 +759,8 @@ public final class Game {
         if (!p.isMarco) {
             if (p.hiddenSignals > 0) { p.hiddenSignals--; for (Listener l : listeners) l.onSignalHidden(this, p); }
             else {
-                Band b = reading(p.cls, p.dist(signalTarget()));
+                int[] t = pastPos(signalTarget(), rules.signalLag);
+                Band b = reading(p.cls, p.dist(t[0], t[1]));
                 for (Listener l : listeners) l.onSignal(this, p, b);
             }
         }
@@ -692,6 +774,11 @@ public final class Game {
             turnIndex = 0;
             stepsByRound.add(totalSteps);
             marcoTrail.add(new int[]{marco.r, marco.c});
+            if (rules.signalLag > 0) {
+                int[][] snap = new int[players.size()][];
+                for (Player q : players) snap[q.id] = new int[]{q.r, q.c};
+                history.add(snap);
+            }
             if (rules.turnLimit > 0 && round >= rules.turnLimit) { finish(WinBy.TIME, null); return; }
             round++;
             if (round > rules.maxRounds) { finish(WinBy.TIME, null); }

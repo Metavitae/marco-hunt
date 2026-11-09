@@ -2,6 +2,7 @@ package com.metavitae.marcohunt.engine;
 
 import com.metavitae.marcohunt.engine.Types.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -21,6 +22,7 @@ public final class Ai implements Game.Listener {
         boolean[] lastCand;   // consistent with the latest signal
         int lastSingle = -1, singleStreak = 0;
         int oracleWait = 0;   // turns spent waiting on the Oracle square for the team
+        boolean[] belief; int beliefRound;
         Brain(int np) { inc = new int[np]; hard = new int[np]; notMarco = new boolean[np]; }
     }
 
@@ -28,6 +30,10 @@ public final class Ai implements Game.Listener {
     final Brain[] brains;
     /** Cunning 0..1 (difficulty): chance that an AI traveller uses the clever move instead of a plain one. */
     public double cunning = 1.0;
+    /** With a trail signal: true = remembers where everyone was (a perfect note-taker); false = compares with where they are now, as most people would. */
+    public boolean perfectMemory = true;
+    /** Hidden Marco: how often a rival follows its notes instead of wandering (players other than seat 0); below 0 = cunning. */
+    public double rivalSkill = -1;
 
     public Ai(Game g) {
         this.g = g;
@@ -38,14 +44,63 @@ public final class Ai implements Game.Listener {
 
     // ------------------------------------------------------------------ listening
 
+    // ---- hidden Marco: each AI keeps the set of squares he could be on, as a careful player would
+    private boolean[] belief(Player p) {
+        Brain b = brains[p.id];
+        if (b.belief == null) { b.belief = new boolean[g.n * g.n]; Arrays.fill(b.belief, true); b.beliefRound = g.round; }
+        return b.belief;
+    }
+
+    /** He has moved since we last looked: every believed square spreads by the die. */
+    private void spread(Player p) {
+        Brain b = brains[p.id];
+        boolean[] s = belief(p);
+        int radius = (g.round - b.beliefRound) * (g.rules.marcoStep > 0 ? g.rules.marcoStep : g.rules.dieMax());
+        if (radius <= 0) return;
+        boolean[] out = new boolean[s.length];
+        for (int i = 0; i < s.length; i++) {
+            if (!s[i]) continue;
+            int r0 = i / g.n, c0 = i % g.n;
+            for (int r = Math.max(0, r0 - radius); r <= Math.min(g.n - 1, r0 + radius); r++)
+                for (int c = Math.max(0, c0 - radius); c <= Math.min(g.n - 1, c0 + radius); c++)
+                    if (Math.abs(r - r0) + Math.abs(c - c0) <= radius) out[r * g.n + c] = true;
+        }
+        b.belief = out; b.beliefRound = g.round;
+    }
+
+    private interface SquareTest { boolean ok(int r, int c); }
+
+    private void narrow(Player p, SquareTest t) {
+        boolean[] s = belief(p);
+        boolean[] kept = new boolean[s.length];
+        boolean any = false;
+        for (int i = 0; i < s.length; i++) if (s[i] && t.ok(i / g.n, i % g.n)) { kept[i] = true; any = true; }
+        if (!any) for (int i = 0; i < s.length; i++) if (t.ok(i / g.n, i % g.n)) kept[i] = true; // the notes contradict themselves: a lie; start again
+        brains[p.id].belief = kept;
+    }
+
+    /** The believed square nearest to the player (ties at random). */
+    private int[] believedTarget(Player p) {
+        boolean[] s = belief(p);
+        int best = -1; double bestD = Double.MAX_VALUE;
+        for (int i = 0; i < s.length; i++) {
+            if (!s[i] || i == g.idx(p.r, p.c)) continue;
+            double d = p.dist(i / g.n, i % g.n) + g.rng.nextDouble() * 2;
+            if (d < bestD) { bestD = d; best = i; }
+        }
+        return best < 0 ? new int[]{g.n / 2, g.n / 2} : new int[]{best / g.n, best % g.n};
+    }
+
     @Override public void onSignal(Game g, Player p, Band band) {
         Brain b = brains[p.id];
+        if (g.rules.hiddenMarco) { b.obs++; spread(p); narrow(p, (r, c) -> g.reading(p.cls, p.dist(r, c)) == band); return; }
         b.obs++;
         boolean[] cand = new boolean[g.players.size()];
         int count = 0, single = -1;
         for (Player s : g.players) {
             if (s == p || b.notMarco[s.id]) continue;
-            boolean ok = g.reading(p.cls, p.dist(s)) == band;
+            int[] at = perfectMemory ? g.pastPos(s, g.rules.signalLag) : new int[]{s.r, s.c};
+            boolean ok = g.reading(p.cls, p.dist(at[0], at[1])) == band;
             if (!ok) b.inc[s.id]++;
             else { cand[s.id] = true; count++; single = s.id; }
         }
@@ -96,6 +151,12 @@ public final class Ai implements Game.Listener {
     }
 
     @Override public void onOracle(Game g, Player p, int mark, int about) {
+        if (g.rules.hiddenMarco) {
+            int[] m = g.marks[mark];
+            spread(p);
+            narrow(p, (r, c) -> Math.abs(Math.abs(r - m[0]) + Math.abs(c - m[1]) - about) <= g.rules.oracleTolerance);
+            return;
+        }
         Brain b = brains[p.id];
         int[] M = g.marks[mark];
         for (Player s : g.players) {
@@ -191,7 +252,7 @@ public final class Ai implements Game.Listener {
         if (k != Kind.WANDERER && cands.size() >= 2 && clever()) {
             if (p.items.contains(Content.FALCON) && g.opportunitiesLeft() > 0) g.useFalcon(p);
             if (p.items.contains(Content.COMPASS) && g.opportunitiesLeft() > 0) g.useCompass(p);
-            if (p.cls == Cls.MAGUS && g.skillReady(p) && g.opportunitiesLeft() > 0) divine(p, cands);
+            if (!g.rules.simple && p.cls == Cls.MAGUS && g.skillReady(p) && g.opportunitiesLeft() > 0) divine(p, cands);
             if (k == Kind.DETECTIVE) cands = candidates(p);
         }
         // a Spyglass when the notes contradict themselves (an echo is likely)
@@ -201,7 +262,7 @@ public final class Ai implements Game.Listener {
         }
 
         // 3. fighters attack within reach
-        if (k == Kind.FIGHTER && g.opportunitiesLeft() > 0) {
+        if (!g.rules.simple && k == Kind.FIGHTER && g.opportunitiesLeft() > 0) {
             List<Player> inReach = new ArrayList<>();
             for (Player q : g.players) if (q != p && !p.teammateOf(q) && p.dist(q) <= Types.reach(p.cls)) inReach.add(q);
             if (!inReach.isEmpty()) {
@@ -213,8 +274,15 @@ public final class Ai implements Game.Listener {
 
         // 4. where to go
         int tr, tc;
-        boolean oraclePlan = wantsOracle(p, k, cands);
-        if (oraclePlan) {
+        int[] errand = (k == Kind.WANDERER || k == Kind.FIGHTER || cands.size() == 1) ? null : nearestErrand(p);
+        boolean oraclePlan = errand == null && !(g.rules.hiddenMarco && k == Kind.WANDERER) && wantsOracle(p, k, g.rules.hiddenMarco ? g.players : cands);
+        if (errand != null) {
+            tr = errand[0]; tc = errand[1];
+        } else if (g.rules.hiddenMarco && k != Kind.WANDERER && !oraclePlan) {
+            boolean follows = (p.id != 0 && rivalSkill >= 0) ? g.rng.nextDouble() < rivalSkill : clever();
+            int[] t = follows ? believedTarget(p) : new int[]{g.rng.nextInt(g.n), g.rng.nextInt(g.n)};
+            tr = t[0]; tc = t[1];
+        } else if (oraclePlan) {
             tr = g.oracle / g.n; tc = g.oracle % g.n;
             if (p.r == tr && p.c == tc && b.oracleWait < 4) { b.oracleWait++; g.rest(p); g.endTurn(p); return; } // wait for the team, rest up
         } else if (k == Kind.WANDERER) {
@@ -236,8 +304,43 @@ public final class Ai implements Game.Listener {
         g.endTurn(p);
     }
 
+    private int[] nearestErrand(Player p) {
+        int[] best = null;
+        for (int k : g.errands.get(p.id)) {
+            int[] L = g.landmarks[k];
+            if (best == null || p.dist(L[0], L[1]) < p.dist(best[0], best[1])) best = L;
+        }
+        return best;
+    }
+
+    /** Marco with errands: heads for his next place like anyone on an errand, shying away only from hunters right beside him. */
+    private void playErrandMarco(Player m) {
+        int[] t = nearestErrand(m);
+        int k0 = g.moveAllowance();
+        int[] best = null; double bestScore = Double.MAX_VALUE;
+        for (int r = Math.max(0, m.r - k0); r <= Math.min(g.n - 1, m.r + k0); r++)
+            for (int c = Math.max(0, m.c - k0); c <= Math.min(g.n - 1, m.c + k0); c++) {
+                if (!g.reachable(m, r, c, k0)) continue;
+                if (!(r == m.r && c == m.c) && !g.at(r, c).isEmpty()) continue;
+                int i = g.idx(r, c);
+                if (g.content[i].isPeril() && !g.opened[i]) continue;
+                double score = Math.abs(r - t[0]) + Math.abs(c - t[1]) + g.rng.nextDouble() * 0.5;
+                for (Player q : g.players) {
+                    if (q == m) continue;
+                    int d = Math.abs(q.r - r) + Math.abs(q.c - c);
+                    if (d <= 2) score += (3 - d) * 1.5;
+                }
+                if (score < bestScore) { bestScore = score; best = new int[]{r, c}; }
+            }
+        if (best == null) { g.rest(m); g.endTurn(m); return; }
+        g.move(m, best[0], best[1]);
+        if (g.over) return;
+        g.endTurn(m);
+    }
+
     private boolean wantsOracle(Player p, Kind k, List<Player> cands) {
         if (!g.oracleKnown || g.marcoRevealed) return false;
+        if (g.rules.simple && g.teamAskedOracle[8 + p.id]) return false; // already heard it
         // a teammate is waiting on the Oracle square: everyone in the team comes
         for (Player q : g.players)
             if (p.teammateOf(q) && g.idx(q.r, q.c) == g.oracle && brains[p.id].oracleWait < 4) return true;
@@ -306,14 +409,43 @@ public final class Ai implements Game.Listener {
         // cast one gift or trap into a free slot
         if (!m.hand.isEmpty()) castSomething(m);
         // keep an echo going
-        if (g.canEcho(m) && !g.echoActive()) {
+        if (g.rules.simple && g.canEcho(m) && !g.echoActive()) {
+            // his one lie: kept for when a hunter comes close
+            Player close = nearestOther(m, null);
+            if (close != null && close.dist(m) <= 2 * g.rules.dieMax()) {
+                Player decoy = null;
+                for (Player q : g.players) if (q != m && (decoy == null || q.dist(m) > decoy.dist(m))) decoy = q;
+                if (decoy != null) g.setEcho(m, decoy, 0, 1);
+            }
+        } else if (g.canEcho(m) && !g.echoActive()) {
             Player decoy = null;
             for (Player q : g.players) if (q != m && (decoy == null || q.dist(m) > decoy.dist(m))) decoy = q;
             if (decoy != null) g.setEcho(m, decoy, 0, 2 + g.rng.nextInt(Math.max(1, g.rules.echoMaxLength - 1)));
         }
+        if (g.rules.marcoErrands > 0 && !g.errands.get(m.id).isEmpty()) { playErrandMarco(m); return; }
+        if (g.rules.marcoAmbles) {
+            g.forceRoll(Math.max(1, g.rules.marcoStep));
+            List<int[]> ways = new ArrayList<>();
+            if (g.rng.nextDouble() < g.rules.marcoMoveChance) {
+                int[][] d = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+                for (int[] x : d) {
+                    int r = m.r + x[0], c = m.c + x[1];
+                    if (!g.onBoard(r, c) || !g.at(r, c).isEmpty()) continue;
+                    int i = g.idx(r, c);
+                    if (g.content[i].isPeril() && !g.opened[i]) continue;
+                    ways.add(new int[]{r, c});
+                }
+            }
+            if (ways.isEmpty()) g.rest(m);
+            else { int[] w = ways.get(g.rng.nextInt(ways.size())); g.move(m, w[0], w[1]); }
+            if (g.over) return;
+            g.endTurn(m);
+            return;
+        }
+        if (g.rules.marcoStep > 0) g.forceRoll(g.rules.marcoStep);
         // flee: the reachable square farthest from the nearest non-teammate
         Player near = nearestOther(m, null);
-        if (near != null && m.items.contains(Content.LEAP) && g.opportunitiesLeft() > 0 && near.dist(m) <= g.rules.dieMax()) g.useLeap(m);
+        if (g.rules.marcoStep == 0 && near != null && m.items.contains(Content.LEAP) && g.opportunitiesLeft() > 0 && near.dist(m) <= g.rules.dieMax()) g.useLeap(m);
         int k0 = g.moveAllowance();
         int[] best = null;
         double bestScore = -1;

@@ -77,13 +77,14 @@ class BoardView(ctx: Context) : View(ctx) {
         // travellers: a pawn with a soft shadow, class colour and number (several on one square are offset a little)
         val seen = HashMap<Int, Int>()
         for (p in g.players) {
+            if (g.rules.hiddenMarco && p.isMarco && !g.over) continue // nobody sees him until the end
             val a = anim[p.id]
             val pr = a?.get(0) ?: p.r.toFloat(); val pc = a?.get(1) ?: p.c.toFloat()
             val i = g.idx(Math.round(pr), Math.round(pc))
             val k = if (a != null) 0 else seen.getOrDefault(i, 0).also { seen[i] = it + 1 }
             val off = k * s * 0.16f
             Art.pawn(c, RectF(pc * s + s * 0.08f + off, pr * s + s * 0.04f + off, pc * s + s * 0.92f + off, pr * s + s * 0.96f + off),
-                Art.CLASS_COLOR[p.cls.ordinal], if (p.id == humanId) "★" else p.id.toString(),
+                Art.CLASS_COLOR[p.cls.ordinal], if (p.id == humanId) "★" else if (g.rules.hiddenMarco && p.isMarco) "M" else p.id.toString(),
                 when { p.id == humanId -> Art.LAPIS; p.id == revealedMarco -> Art.MADDER; else -> 0 }, moving = a != null)
         }
         c.drawRect(1f, 1f, width - 1f, height - 1f, frame)

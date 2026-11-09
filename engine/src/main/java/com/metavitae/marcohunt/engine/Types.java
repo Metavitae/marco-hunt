@@ -27,7 +27,7 @@ public final class Types {
 
     public enum Dir { N, E, S, W }
 
-    public enum WinBy { NONE, LANDING, ACCUSATION, TIME }
+    public enum WinBy { NONE, LANDING, ACCUSATION, TIME, ERRANDS }
 
     /** Power-up that suits each class (Notes v24: Leap and Falcon: Mongol; Shield: Knight; Spyglass: Magus; Compass: Traveler). */
     public static boolean suits(Cls c, Content item, boolean secondItems) {

@@ -62,7 +62,7 @@ class MiniMapView(ctx: Context) : View(ctx) {
 
         // the travellers, you last so the star is never hidden
         for (p in g.players) {
-            if (p.id == humanId) continue
+            if (p.id == humanId || (g.rules.hiddenMarco && p.isMarco && !g.over)) continue
             fill.color = Art.CLASS_COLOR[p.cls.ordinal]
             c.drawCircle(x(p.c.toFloat()), y(p.r.toFloat()), tokenR, fill)
             c.drawCircle(x(p.c.toFloat()), y(p.r.toFloat()), tokenR, edge)

@@ -49,8 +49,8 @@ class MainActivity : Activity() {
         if (Camp.exists(this)) col.addView(button(R.string.camp_continue) {
             startActivity(Intent(this, GameActivity::class.java).putExtra("resume", true))
         })
-        col.addView(button(R.string.solo) { soloSetup(false) })
-        col.addView(button(R.string.tutorial) { startGame(0, 10, 0, 3, true) })
+        col.addView(button(R.string.solo) { startGame((0..3).random(), 10, 0, 3, false) })
+        col.addView(button(R.string.tutorial) { startGame((0..3).random(), 10, 0, 3, true) })
         col.addView(button(R.string.host, enabled = false) { soon() })
         col.addView(button(R.string.join, enabled = false) { soon() })
         col.addView(button(R.string.about) {

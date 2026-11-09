@@ -45,6 +45,11 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     /** Where the floating panels leave the picture free, so edge chips are never hidden: top, bottom, and top on the right side (the little map). */
     var insetTop = 0; var insetBottom = 0; var insetRightTop = 0
     private var curR = 0f; private var curC = 0f
+    /**
+     * Without Google AR the phone can't know it has walked (founder, POCO, Nov 8: the board travelled with him, then
+     * jumped). So the player stays in one spot: the board stays fixed around this square and his own piece walks on it.
+     */
+    private var anchorR = -1; private var anchorC = -1
     private val tmp = FloatArray(4); private val out = FloatArray(4)
 
     private val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -60,8 +65,9 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     private val hint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); textAlign = Paint.Align.CENTER; textSize = 40f; setShadowLayer(6f, 0f, 0f, 0xFF000000.toInt()) }
 
     fun start() {
-        val s = sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-            ?: sm.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
+        // no compass first: only turning matters here, and the compass makes the board swim near metal and indoors
+        val s = sm.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
+            ?: sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
             ?: sm.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR)
         if (s != null) sm.registerListener(this, s, SensorManager.SENSOR_DELAY_GAME)
     }
@@ -95,6 +101,7 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
         val f = azimuth()
         val g = game ?: return f
         val me = g.players[humanId]
+        anchorR = me.r; anchorC = me.c
         val mid = (g.n - 1) / 2f
         val toCentre = atan2(mid - me.c, mid - me.r)
         val quarter = (Math.PI / 2).toFloat()
@@ -178,7 +185,8 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
         if (a != null && !a.ready) { if (hints) c.drawText(context.getString(R.string.ar_mark1), width / 2f, height * 0.85f, hint); return }
         if (a == null && !haveRot) { c.drawText("…", width / 2f, height / 2f, hint); return }
         val me = g.players[humanId]
-        val pr = me.r.toFloat(); val pc = me.c.toFloat()
+        val pr = (if (a == null && anchorR >= 0) anchorR else me.r).toFloat()
+        val pc = (if (a == null && anchorC >= 0) anchorC else me.c).toFloat()
         curR = pr; curC = pc
         // the whole board (founder, Nov 6: "I couldn't see the whole outdoors board")
         val r0 = 0; val r1 = g.n - 1
@@ -245,36 +253,31 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
                 }
             }
         }
-        // travellers: a standing piece on the square, and a pole with a banner so they can be spotted from far away.
-        // Founder, Nov 7: "the poles became invisible at a distance" -> poles and flags never get smaller
-        // than a thumb's width, and travellers outside the picture show as a chip at the edge, pointing to them.
+        // travellers: a standing piece on the square with its number floating above it (painted tokens come later).
+        // Travellers outside the picture show as a chip at the edge, pointing to them.
         for (p in g.players) {
-            if (p.id == humanId) continue
+            if (p.id == humanId && ar != null) continue // with real AR you are the piece: you walk
+            if (g.rules.hiddenMarco && p.isMarco && !g.over) continue // nobody sees him until the end
+            val mark = if (p.id == humanId) "★" else if (g.rules.hiddenMarco && p.isMarco) "M" else "${p.id}"
             val a = anim[p.id]
             val tr = (a?.get(0) ?: p.r.toFloat()) - pr; val tc = (a?.get(1) ?: p.c.toFloat()) - pc
             val base = project(world(tr, tc, 0f))
-            val top = project(world(tr, tc, 2.6f))
             val colour = Art.CLASS_COLOR[p.cls.ordinal]
-            fun inView(q: FloatArray?) = q != null && q[0] in 0f..width.toFloat() && q[1] in 0f..height.toFloat()
-            if (!inView(base) && !inView(top)) { edgeChip(c, p.id, colour, top ?: base); continue }
-            val depth = base?.get(2) ?: top!![2]
-            pieces.add(depth to {
-                if (base != null && top != null) {
-                    pole.strokeWidth = (focal() * 0.06f / base[2]).coerceIn(dp(5f), 40f)
-                    poleEdge.strokeWidth = pole.strokeWidth + dp(3f)
-                    c.drawLine(base[0], base[1], top[0], top[1], poleEdge); c.drawLine(base[0], base[1], top[0], top[1], pole)
-                }
-                if (top != null) {
-                    val flagFoot = project(world(tr, tc, 2.1f))
-                    if (flagFoot != null) stand(c, flagFoot, top, (focal() * 0.6f / top[2]).coerceIn(dp(46f), dp(200f))) { rect ->
-                        Art.pennant(c, RectF(rect.centerX(), rect.top, rect.right + rect.width() * 0.5f, rect.bottom), colour, "${p.id}")
-                    }
-                    if (p.id == revealedMarco) c.drawText("☀", top[0], top[1] - 10f, hint)
-                }
-                if (base != null) {
-                    val w = pieceWidth(base[2])
-                    stand(c, base, project(world(tr, tc, w * 1.3f * base[2] / focal())), w) { Art.pawn(c, it, colour, "${p.id}", 0) }
-                }
+            if (base == null || base[0] !in 0f..width.toFloat() || base[1] !in 0f..height.toFloat()) { edgeChip(c, p.id, mark, colour, base); continue }
+            pieces.add(base[2] to {
+                val w = pieceWidth(base[2])
+                val pieceTop = project(world(tr, tc, w * 1.3f * base[2] / focal()))
+                stand(c, base, pieceTop, w) { Art.pawn(c, it, colour, "", 0) }
+                // the number floats over the piece at one size, near or far (founder, Nov 8, instead of flag poles)
+                val over = pieceTop ?: floatArrayOf(base[0], base[1] - w)
+                val bx = over[0]; val by = over[1] - dp(20f)
+                glowFill.color = colour
+                c.drawCircle(bx, by, dp(15f), glowFill)
+                poleEdge.strokeWidth = dp(2f); poleEdge.style = Paint.Style.STROKE
+                c.drawCircle(bx, by, dp(15f), poleEdge); poleEdge.style = Paint.Style.FILL_AND_STROKE
+                chipText.textSize = dp(18f)
+                c.drawText(mark, bx, by - (chipText.descent() + chipText.ascent()) / 2, chipText)
+                if (p.id == revealedMarco) c.drawText("☀", bx, by - dp(20f), hint)
             })
         }
         pieces.sortByDescending { it.first }
@@ -318,7 +321,7 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     private val chipText = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF3A2412.toInt(); textAlign = Paint.Align.CENTER; isFakeBoldText = true }
 
     /** A traveller outside the picture: a chip on the nearest edge with an arrow (or "behind you"). */
-    private fun edgeChip(c: Canvas, id: Int, colour: Int, at: FloatArray?) {
+    private fun edgeChip(c: Canvas, id: Int, mark: String, colour: Int, at: FloatArray?) {
         val m = dp(30f)
         val cx: Float; val cy: Float; val arrow: String
         if (at == null) { cx = width / 2f + (id - 2) * dp(64f); cy = height - maxOf(dp(96f), insetBottom + dp(22f)); arrow = "↓" }
@@ -335,7 +338,7 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
         poleEdge.strokeWidth = dp(2f); poleEdge.style = Paint.Style.STROKE
         c.drawRoundRect(r, dp(18f), dp(18f), poleEdge); poleEdge.style = Paint.Style.FILL_AND_STROKE
         chipText.textSize = dp(17f)
-        c.drawText("$arrow $id", cx, cy - (chipText.descent() + chipText.ascent()) / 2, chipText)
+        c.drawText("$arrow $mark", cx, cy - (chipText.descent() + chipText.ascent()) / 2, chipText)
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {
@@ -375,7 +378,7 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
         val dr = (hx * sin(h) + hy * cos(h)) / squareM
         val dc = (hx * cos(h) - hy * sin(h)) / squareM
         val me = g.players[humanId]
-        val r = Math.round(me.r + dr); val c = Math.round(me.c + dc)
+        val r = Math.round((if (anchorR >= 0) anchorR else me.r) + dr); val c = Math.round((if (anchorC >= 0) anchorC else me.c) + dc)
         if (r in 0 until g.n && c in 0 until g.n) onTap?.invoke(r, c)
         performClick()
         return true

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Marco Hunt</string>
-    <string name="tagline">Walk inside an old map and hunt the traveller hidden among you.</string>
-    <string name="solo">Solo Hunt</string>
+    <string name="tagline">Walk inside an old map and hunt the hidden traveller.</string>
+    <string name="solo">Play</string>
     <string name="tutorial">How to play (guided hunt)</string>
     <string name="host">Host a game</string>
     <string name="join">Join with a code</string>
@@ -130,7 +130,7 @@
     <string name="board_set">Board set: it is in front of you.</string>
     <string name="walk_there">Walk to the lit square, then tap I\'m here.</string>
     <string name="cam_why">The camera shows the board on the ground. Marco Hunt uses the camera only for that, and saves nothing.</string>
-    <string name="cam_hint">Face the way you want the board and tap Set board: it appears in front of you. Look up often and watch where you walk.</string>
+    <string name="cam_hint">On this phone you stay in one spot and your piece walks for you. Face the way you want the board and tap Set board: it appears in front of you.</string>
     <string name="cam_denied">No camera: the map board still works.</string>
     <string name="lbl_travellers">Travellers</string>
     <string name="lbl_chronicle">Chronicle</string>
@@ -156,7 +156,7 @@
     <string name="your_turn_banner">Your turn! You rolled %1$d</string>
     <string name="walked">walked %1$d squares</string>
     <string name="stayed">stayed put</string>
-    <string name="not_lit">You can only walk to a gold square: exactly %1$d steps, no diagonals.</string>
+    <string name="not_lit">You can only walk to a gold square: up to %1$d steps, no diagonals.</string>
     <string name="frozen_title">Frozen!</string>
     <string name="frozen_you">The cold still holds you: you miss this turn.</string>
     <string name="rest_done">You rest and get a heart back: %1$s</string>
@@ -175,7 +175,7 @@
     <string name="sig_cold">Marco is far: more than %1$d squares from you.</string>
     <string name="sig_knight">(As a Knight you feel warm as cold.)</string>
     <string name="sig_card_title">Your signal: %1$s</string>
-    <string name="sig_card_why">After each of your turns you get a signal, measured from you to Marco, in steps (no diagonals). Compare it with where each traveller stands: ✓ fits this signal, ✗ does not. But Marco can plant a false signal (an echo), so trust several signals, not one. Tap a traveller\'s name to read more.</string>
+    <string name="sig_card_why">After each walk you get a signal: how far you are from Marco, in steps with no diagonals. Warmer means you got closer, colder means further. He creeps around slowly. Once in a game he may send a false signal, so trust several, not one.</string>
     <string name="trend_up">Warmer than last turn: you got closer.</string>
     <string name="trend_down">Colder than last turn: you got farther.</string>
     <string name="trend_same">Same as last turn.</string>
@@ -209,7 +209,7 @@
     <string name="p_heart">You lose a heart: %1$s</string>
     <string name="p_blocked_shield">Your Shield stopped it! The Shield is used up.</string>
     <string name="p_blocked_weak">It couldn\'t hurt you this time: your class is strong against it.</string>
-    <string name="p_why">Decorations can hide dangers. Some are luck, some are traps Marco set. A Shield in your sac stops one.</string>
+    <string name="p_why">Decorations can hide dangers. A Shield stops one.</string>
     <string name="hearts_why">Hearts: with all of them you can hear the Oracle. Rest (stay a whole turn) gives one back.</string>
     <string name="r_fight">fought %1$s: %2$s</string>
     <string name="r_fight_won">%1$s won</string>
@@ -221,13 +221,13 @@
     <string name="r_peril_hit">was hit by %1$s</string>
     <string name="r_peril_blocked">escaped %1$s</string>
     <string name="found_title">You found a %1$s!</string>
-    <string name="in_sac">It is in your sac now (bottom of the screen). Tap it on your turn to use it: it costs your 1 action. Long-press it to read this again.</string>
-    <string name="shield_sac">It is in your sac and works by itself: it stops the next danger that hits you.</string>
+    <string name="in_sac">It is in your sac now (bottom of the screen). Tap it on your turn, before you walk. Long-press it to read this again.</string>
+    <string name="shield_sac">It is in your sac and works by itself.</string>
     <string name="oracle_found_title">You found the Oracle!</string>
     <string name="oracle_found">The Khan\'s astrologers live on this square. Stand here with all your hearts and they read you a riddle about where Marco walked.</string>
     <string name="nothing_here">Empty: nothing here this time.</string>
-    <string name="d_leap">Leap: use it before you walk. You get extra steps this turn (a die roll, +2 if it suits your class).</string>
-    <string name="d_shield">Shield: stops the next danger that hits you. In a fight it adds +2 if it suits your class.</string>
+    <string name="d_leap">Leap: use it before you walk. You get extra steps this turn.</string>
+    <string name="d_shield">Shield: it works by itself. It stops the next danger, or a traveller taking your helper. Then it is used up.</string>
     <string name="d_spyglass">Spyglass: Marco can fake your signal with an echo (a decoy). The Spyglass shows whether he is doing it now, and breaks it.</string>
     <string name="d_falcon">Falcon: tells you which way Marco is: north, east, south or west.</string>
     <string name="d_compass">Compass: tells you exactly how many rows (or columns) Marco is from you.</string>
@@ -239,9 +239,9 @@
     <string name="tr_unknown">No signal yet.</string>
     <string name="tr_dist">%1$d steps from you.</string>
     <string name="tw_title">The hunt begins</string>
-    <string name="tw">You are the ★. Three travellers walk the map with you, and one of them is secretly Marco.\n\nFind him: land on his square, or accuse him (one try per game).</string>
+    <string name="tw">You are the ★. Marco is hiding somewhere on this board, and you can\'t see him.\n\nAfter each walk, the signal says HOT, WARM or COLD. Follow it and land on his square to win. Two other travellers are hunting him too.</string>
     <string name="tm_title">Your move</string>
-    <string name="tm">The red die says how many steps you walk: %1$d. The gold squares are where exactly %1$d steps can take you. Tap one.\n\nBesides walking you have 1 action (top right): use a helper from your sac, your Skill, or Attack.</string>
+    <string name="tm">The red die is how far you can walk: up to %1$d steps, no diagonals. The gold squares show where. Tap one.\n\nIf you have a helper, tap it first.</string>
     <string name="tr_title">The others\' turns</string>
     <string name="tr">Now the other travellers walk, one by one. The banner on the map says what each one did.</string>
     <string name="td_title">Decorations</string>
@@ -255,7 +255,15 @@
     <string name="guide_outside">You are outside the board. Go to: row %1$d, column %2$d.</string>
     <string name="guide_on">You are on your square: row %1$d, column %2$d ✓</string>
     <string name="guide_walk">You: row %1$d, column %2$d → Go to: row %3$d, column %4$d</string>
-    <string name="guide_lite">Your square: row %1$d, column %2$d. The board hangs around you.</string>
+    <string name="guide_lite">Your piece: row %1$d, column %2$d. Stay where you are: tap a gold square and it walks there.</string>
     <string name="walked_one">walked 1 square</string>
     <string name="set_first">You rolled %1$d. Set the board first.</string>
+    <string name="reveal_hidden">Marco was hiding on row %1$d, column %2$d.</string>
+    <string name="st_you_take">%1$s had a %2$s. It is yours now.</string>
+    <string name="st_you_none">%1$s has no helpers to take.</string>
+    <string name="st_you_stop">%1$s\'s Shield stopped you taking anything. The Shield is used up.</string>
+    <string name="st_they_take">%1$s landed on you and took your %2$s.</string>
+    <string name="st_they_stop">%1$s landed on you, but your Shield stopped them. It is used up.</string>
+    <string name="st_why">Land on a traveller and you take one of their helpers.</string>
+    <string name="tr_hunting">Hunting Marco too, %1$d steps from you. Land on them to take one of their helpers.</string>
 </resources>

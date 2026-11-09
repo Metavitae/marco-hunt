@@ -126,34 +126,22 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     // ------------------------------------------------------------------ setup
 
     private fun newGame(clsIdx: Int, n: Int, rivals: Int) {
-        val r = Rules()
-        r.n = n
-        r.players = 1 + rivals
-        r.teams = false                          // no teams in solo
-        r.dieSides = if (n <= 10) 6 else 10      // Task S defaults
-        r.oracleTolerance = if (n >= 20) 2 else 1 // Task O: about d, give or take 1 (2 on big boards)
-        // solo turn limits (CC's solo run, Marco wins about 1 in 4 against the whole table)
-        val base10 = intArrayOf(10, 8, 6, 5); val base15 = intArrayOf(10, 8, 7, 6)
-        val t = (if (n <= 10) base10 else base15)[(r.players - 3).coerceIn(0, 3)]
-        r.turnLimit = when (level) { 0 -> t + 3; 2 -> maxOf(4, t - 1); else -> t }
-        if (level == 0) r.echoCharges = 3        // Apprentice: 3 echoes per game
-        if (level == 2) r.decoyShare = 0.75      // Master: more decoys
+        // The game the app plays (founder, Nov 8): Marco hides on the board and only ambles; follow the signal and land on him.
+        // Simulated with AI players: about 13 to 15 minutes at most; rivals only wander so a first game can be won.
+        val r = Rules.playable(n, 1 + rivals)
+        r.marcoMoveChance = 0.25
+        r.turnLimit = 25
         r.maxRounds = r.turnLimit
         val classes = Array(r.players) { k -> if (k == 0) Cls.values()[clsIdx] else Cls.values()[(0..3).random()] }
         var seed = System.nanoTime()
         var game: Game
-        do { game = Game(r, seed++, classes) } while (game.marco.id == 0) // the human is never Marco in Solo Hunt
+        do { game = Game(r, seed++, classes) } while (game.marco.id != r.players - 1) // Marco takes the last seat, so the rivals are numbered 1, 2
         g = game
         me = g.players[0]
         me.human = true
         ai = Ai(g)
-        ai.cunning = when (level) { 0 -> 0.5; 2 -> 1.0; else -> 0.8 }
-        val kinds = when (level) {
-            0 -> arrayOf(Kind.WANDERER, Kind.FOLLOWER)
-            2 -> arrayOf(Kind.DETECTIVE, Kind.FIGHTER, Kind.DETECTIVE)
-            else -> arrayOf(Kind.FOLLOWER, Kind.FIGHTER, Kind.DETECTIVE)
-        }
-        for (p in g.players) if (p.id != 0) p.kind = kinds[p.id % kinds.size]
+        ai.rivalSkill = 0.0
+        for (p in g.players) if (p.id != 0) p.kind = Kind.FOLLOWER
         g.listeners.add(this)
     }
 
@@ -276,6 +264,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         accuseBtn = action(R.string.accuse) { doAccuse() }
         actions.addView(restBtn); actions.addView(skillBtn); actions.addView(attackBtn); actions.addView(accuseBtn)
         root.addView(actions)
+        if (g.rules.hiddenMarco) { actions.visibility = View.GONE; oppsChip.visibility = View.GONE }
 
         val layer = FrameLayout(this).apply { visibility = View.GONE; elevation = dp(12).toFloat() }
         frame.addView(layer, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
@@ -325,6 +314,12 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             }
             refresh()
             return // wait for taps
+        }
+        // hidden Marco: his turn happens unseen
+        if (g.rules.hiddenMarco && p.isMarco) {
+            if (g.beginTurn()) try { ai.playTurn(p) } catch (e: RuntimeException) { diary.line(g.round, "Marco error: ${e.message}") }
+            ui.post { loop() }
+            return
         }
         // a rival's turn, played out so it can be followed
         if (tutorial && rivalTurns == 0) { rivalTurns++; teach(4, R.string.tr_title, getString(R.string.tr)); ui.postDelayed({ loop() }, 200); return }
@@ -415,10 +410,16 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         if (!turnOpen || g.over || tale.busy()) return
         when (mode) {
             Mode.MOVE -> if (g.reachable(me, r, c, g.moveAllowance())) {
-                if (cameraOn) { pendingMove = g.idx(r, c); tale.say(getString(R.string.walk_there), 2600); refresh(); return }
+                // with real AR you walk there yourself; otherwise your piece walks for you
+                if (cameraOn && arState != null) { pendingMove = g.idx(r, c); tale.say(getString(R.string.walk_there), 2600); refresh(); return }
                 landedAt = intArrayOf(r, c)
+                val fr = me.r; val fc = me.c
+                val start = floatArrayOf(fr.toFloat(), fc.toFloat())
+                board.anim[0] = start; camView?.anim?.set(0, start)
+                mode = Mode.WAIT
                 act("move to ${sq(r, c)}") { g.move(me, r, c) }
-                endHumanTurn()
+                turnOpen = false
+                walk(0, fr, fc, me.r, me.c) { endHumanTurn() }
             } else tale.say(getString(R.string.not_lit, g.moveAllowance()), 2000)
             Mode.DIVINE -> {
                 val i = g.idx(r, c)
@@ -497,6 +498,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
 
     private fun useItem(item: Content) {
         if (!turnOpen || tale.busy()) return
+        if (item == Content.SHIELD) { tale.show(Tale.Card(itemName(item), itemDesc(item), getString(R.string.shield_sac))); return }
         if (g.opportunitiesLeft() <= 0) { tale.say(getString(R.string.no_actions), 2200); return }
         act("use ${itemName(item)}") {
             when (item) {
@@ -539,9 +541,9 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         val s = when (b) {
             Band.HOT -> getString(R.string.sig_hot, h)
             Band.WARM -> getString(R.string.sig_warm, h + 1, w)
-            Band.COLD -> getString(R.string.sig_cold, if (me.cls == Cls.KNIGHT) h else w)
+            Band.COLD -> getString(R.string.sig_cold, if (!g.rules.simple && me.cls == Cls.KNIGHT) h else w)
         }
-        return if (me.cls == Cls.KNIGHT && b == Band.COLD) s + " " + getString(R.string.sig_knight) else s
+        return if (!g.rules.simple && me.cls == Cls.KNIGHT && b == Band.COLD) s + " " + getString(R.string.sig_knight) else s
     }
 
     private fun explainSignal() {
@@ -593,7 +595,21 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     override fun onNotMarco(g: Game, q: Player) {
         proven.add(q.id)
         notMarcoNow = q.id
-        if (!g.current().human && q.id != 0) turnNews.add(getString(R.string.not_marco, name(q))) // you know you are not Marco
+        if (!g.rules.hiddenMarco && !g.current().human && q.id != 0) turnNews.add(getString(R.string.not_marco, name(q))) // you know you are not Marco
+    }
+
+    override fun onSteal(g: Game, thief: Player, victim: Player, taken: Content?, shieldStopped: Boolean) {
+        if (thief.id == 0) {
+            val what = when {
+                shieldStopped -> getString(R.string.st_you_stop, name(victim))
+                taken != null -> getString(R.string.st_you_take, name(victim), itemName(taken))
+                else -> getString(R.string.st_you_none, name(victim))
+            }
+            tale.show(Tale.Card(name(victim), what, getString(R.string.st_why), accent = Art.GOLD))
+        } else if (victim.id == 0) {
+            if (shieldStopped) pendingCards.add(Tale.Card(name(thief), getString(R.string.st_they_stop, name(thief)), accent = Art.GOLD))
+            else if (taken != null) pendingCards.add(Tale.Card(name(thief), getString(R.string.st_they_take, name(thief), itemName(taken)), getString(R.string.st_why), accent = Art.MADDER))
+        }
     }
 
     override fun onReveal(g: Game, marco: Player) {
@@ -662,9 +678,9 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
                 Content.SCATTER -> getString(R.string.p_scatter, strength)
                 else -> ""
             })
-            parts.add(getString(R.string.p_heart, hearts(maxOf(0, me.vigor - 1))))
+            if (!g.rules.simple) parts.add(getString(R.string.p_heart, hearts(maxOf(0, me.vigor - 1))))
         }
-        tale.show(Tale.Card(getString(R.string.peril_title, itemName(peril)), parts.joinToString("\n"), getString(R.string.p_why) + "\n" + getString(R.string.hearts_why),
+        tale.show(Tale.Card(getString(R.string.peril_title, itemName(peril)), parts.joinToString("\n"), getString(R.string.p_why) + if (g.rules.simple) "" else "\n" + getString(R.string.hearts_why),
             img = bmp, accent = Art.MADDER))
     }
 
@@ -736,8 +752,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         suspects.removeAllViews()
         val help = tutorial || level == 0 || (level == 1 && signalsSeen <= 3)
         for (p in g.players) {
-            if (p.id == 0) continue
-            val mark = when {
+            if (p.id == 0 || (g.rules.hiddenMarco && p.isMarco)) continue
+            val mark = if (g.rules.hiddenMarco) "" else when {
                 p.id == board.revealedMarco -> " ☀"
                 proven.contains(p.id) -> " ✗"
                 help && fits.containsKey(p.id) -> if (fits[p.id] == true) " ✓" else " ✗"
@@ -753,8 +769,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         // you and your sac
         sac.removeAllViews()
         sac.addView(TextView(this).apply {
-            text = "★ ${clsName(me.cls)}  ${hearts(me.vigor)}   "; textSize = 15f; setTextColor(Art.INK); typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
-            setOnClickListener { _ -> tale.show(Tale.Card(clsName(me.cls), classDesc(me.cls), getString(R.string.hearts_why))) }
+            text = if (g.rules.simple) "★ ${clsName(me.cls)}   " else "★ ${clsName(me.cls)}  ${hearts(me.vigor)}   "; textSize = 15f; setTextColor(Art.INK); typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+            if (!g.rules.simple) setOnClickListener { _ -> tale.show(Tale.Card(clsName(me.cls), classDesc(me.cls), getString(R.string.hearts_why))) }
         })
         if (me.items.isEmpty()) sac.addView(text(14f).apply { text = getString(R.string.empty_sac); setTextColor(0xFF8A6A44.toInt()) })
         for (it in me.items.toList()) sac.addView(Button(this).apply {
@@ -773,6 +789,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     }
 
     private fun aboutTraveller(p: Player) {
+        if (g.rules.hiddenMarco) { tale.show(Tale.Card(name(p), getString(R.string.tr_hunting, me.dist(p)))); return }
         val fit = fits[p.id]
         val state = when {
             p.id == board.revealedMarco -> getString(R.string.tr_marco)
@@ -797,6 +814,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     }
 
     private fun accuseHint() {
+        if (!g.rules.accusations) return
         if (me.accused || g.marcoRevealed) return
         val still = g.players.filter { it.id != 0 && !proven.contains(it.id) && fits[it.id] == true }
         if (still.size == 1 && signalsSeen >= 3 && (tutorial || level == 0)) teach(6, R.string.ta_title, getString(R.string.ta, name(still[0])))
@@ -812,7 +830,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
                 if (g.finder?.id == 0) getString(R.string.you_win) else getString(R.string.rival_wins, name(g.finder!!))
             else -> getString(R.string.marco_escapes, g.rules.turnLimit)
         }
-        val reveal = getString(R.string.reveal, name(m), g.casts, g.echoesSet, g.echoesDetected, g.trapsFromMarco[0], g.trapsFromLuck[0])
+        val reveal = if (g.rules.hiddenMarco) getString(R.string.reveal_hidden, m.r + 1, m.c + 1)
+            else getString(R.string.reveal, name(m), g.casts, g.echoesSet, g.echoesDetected, g.trapsFromMarco[0], g.trapsFromLuck[0])
         diary.line(g.round, "OVER · $head · $reveal")
         board.revealedMarco = m.id
         board.invalidate()
@@ -1047,6 +1066,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         return try {
             val o = Save.read(text)
             g = o[0] as Game; ai = o[1] as Ai
+            ai.rivalSkill = 0.0
             me = g.players[0]
             g.listeners.add(this)
             val ui = HashMap<String, String>()
