@@ -97,8 +97,8 @@ object Art {
 
     /** The era's creature that appears when a peril is found (painted with Canva AI; the siren is left out, care rule). */
     fun creatureFor(peril: com.metavitae.marcohunt.engine.Types.Content, square: Int): String? = when (peril) {
-        com.metavitae.marcohunt.engine.Types.Content.SERPENT -> arrayOf("creature_serpent", "creature_dragon", "creature_basilisk")[square % 3]
-        com.metavitae.marcohunt.engine.Types.Content.SCATTER -> arrayOf("creature_hafgufa", "creature_ruc")[square % 2]
+        com.metavitae.marcohunt.engine.Types.Content.SERPENT -> arrayOf("creature_serpent", "creature_dragon", "creature_basilisk", "creature_amphisbaena")[square % 4]
+        com.metavitae.marcohunt.engine.Types.Content.SCATTER -> arrayOf("creature_hafgufa", "creature_ruc", "creature_horsewhale", "creature_siren")[square % 4]
         com.metavitae.marcohunt.engine.Types.Content.FREEZE -> "creature_whitebear"
         else -> null
     }

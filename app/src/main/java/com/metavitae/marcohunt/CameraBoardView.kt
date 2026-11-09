@@ -50,7 +50,8 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     private val sm = ctx.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val rot = FloatArray(9).also { it[0] = 1f; it[4] = 1f; it[8] = 1f }
     private var haveRot = false
-    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFF1E4C8.toInt(); strokeWidth = 3f; style = Paint.Style.STROKE }
+    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF8A6A44.toInt(); strokeWidth = 3f; style = Paint.Style.STROKE }
+    private val boardFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Art.PARCHMENT; style = Paint.Style.FILL }
     private val shade = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x99000000.toInt(); strokeWidth = 6f; style = Paint.Style.STROKE }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pillar = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = 10f; strokeCap = Paint.Cap.ROUND }
@@ -119,6 +120,28 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
         return floatArrayOf(width / 2f + f * dx / depth, height / 2f - f * dy / depth, depth)
     }
 
+    /** Fills the board's outline; where it runs behind the camera it is cut at the point the camera can still see. */
+    private fun solidBoard(c: Canvas, corners: List<FloatArray>) {
+        val pts = ArrayList<FloatArray>()
+        fun at(a: FloatArray, b: FloatArray, t: Float) = floatArrayOf(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t)
+        for (i in corners.indices) {
+            val a = corners[i]; val b = corners[(i + 1) % corners.size]
+            val pa = project(a); val pb = project(b)
+            if (pa != null) pts.add(pa)
+            if ((pa == null) != (pb == null)) {
+                var seen = if (pa != null) 0f else 1f
+                var hidden = 1f - seen
+                repeat(12) { val m = (seen + hidden) / 2; if (project(at(a, b, m)) != null) seen = m else hidden = m }
+                project(at(a, b, seen))?.let { pts.add(it) }
+            }
+        }
+        if (pts.size < 3) return
+        val path = Path(); path.moveTo(pts[0][0], pts[0][1])
+        for (k in 1 until pts.size) path.lineTo(pts[k][0], pts[k][1])
+        path.close()
+        c.drawPath(path, boardFill)
+    }
+
     private fun seg(c: Canvas, a: FloatArray, b: FloatArray, paint: Paint) {
         // draw in small pieces so lines that pass behind the camera are cut cleanly
         val n = 8
@@ -144,6 +167,10 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
         // the whole board (founder, Nov 6: "I couldn't see the whole outdoors board")
         val r0 = 0; val r1 = g.n - 1
         val c0 = 0; val c1 = g.n - 1
+        // the board itself is solid (founder, Nov 8: no need for it to be transparent); the world shows only around it
+        solidBoard(c, listOf(
+            world(r0 - pr - 0.5f, c0 - pc - 0.5f, 0f), world(r0 - pr - 0.5f, c1 - pc + 0.5f, 0f),
+            world(r1 - pr + 0.5f, c1 - pc + 0.5f, 0f), world(r1 - pr + 0.5f, c0 - pc - 0.5f, 0f)))
         // lit squares (where the roll can take you) and the picked square
         for (i in lit + if (picked >= 0) setOf(picked) else emptySet()) {
             val r = i / g.n; val cc = i % g.n
@@ -151,17 +178,17 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
                 .map { project(world(r - pr + it.first, cc - pc + it.second, 0f)) }
             if (corners.any { it == null }) continue
             val path = Path(); path.moveTo(corners[0]!![0], corners[0]!![1]); for (k in 1..3) path.lineTo(corners[k]!![0], corners[k]!![1]); path.close()
-            fill.color = if (i == picked) 0x885B7FD1.toInt() else 0x66E3C46A
+            fill.color = if (i == picked) 0xFF5B7FD1.toInt() else 0xFFE3C46A.toInt()
             c.drawPath(path, fill)
         }
         // the grid on the ground
         for (r in r0..r1 + 1) {
             val a = world(r - pr - 0.5f, c0 - pc - 0.5f, 0f); val b = world(r - pr - 0.5f, c1 - pc + 0.5f, 0f)
-            seg(c, a, b, shade); seg(c, a, b, line)
+            seg(c, a, b, line)
         }
         for (cc in c0..c1 + 1) {
             val a = world(r0 - pr - 0.5f, cc - pc - 0.5f, 0f); val b = world(r1 - pr + 0.5f, cc - pc - 0.5f, 0f)
-            seg(c, a, b, shade); seg(c, a, b, line)
+            seg(c, a, b, line)
         }
         // tall light pillars at the corners and every 5 squares along the edges (grid corners, never on squares)
         val edgePts = ArrayList<Pair<Float, Float>>()

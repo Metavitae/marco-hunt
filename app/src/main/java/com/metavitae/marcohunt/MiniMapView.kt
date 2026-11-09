@@ -32,7 +32,7 @@ class MiniMapView(ctx: Context) : View(ctx) {
         val n = g.n
         val side = minOf(width, height).toFloat()
         val cell = side / n
-        fill.color = 0xE6FBF3DF.toInt()
+        fill.color = 0xFFFBF3DF.toInt()
         c.drawRect(0f, 0f, side, side, fill)
         fun x(col: Float) = (col + 0.5f) * cell
         fun y(row: Float) = (row + 0.5f) * cell
