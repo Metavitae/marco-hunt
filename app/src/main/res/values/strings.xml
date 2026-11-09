@@ -69,7 +69,7 @@
     <string name="you_win">You found Marco!</string>
     <string name="rival_wins">%1$s found Marco first.</string>
     <string name="marco_escapes">Marco escaped: nobody found him in %1$d rounds.</string>
-    <string name="reveal">Marco was %1$s. He cast %2$d traps and gifts and set %3$d echoes (%4$d caught by a Spyglass). Of the perils that hit you, %5$d were Marco\'s traps and %6$d were luck.</string>
+    <string name="reveal">Marco was %1$s. He cast %2$d traps and gifts and planted %3$d false signals, called echoes (a Spyglass caught %4$d). Dangers that hit you: %5$d from his traps, %6$d from bad luck.</string>
     <string name="again">Hunt again</string>
     <string name="home">Home</string>
     <string name="you">You</string>
@@ -136,7 +136,7 @@
     <string name="lbl_chronicle">Chronicle</string>
     <string name="round_short">Round %1$d / %2$d</string>
     <string name="actions_short">Actions %1$d</string>
-    <string name="ar_hint">Real AR: walk to the object at the first corner and tap Set board, then to the object at the far corner and tap it again.</string>
+    <string name="ar_hint">Pick two objects on the ground, one for corner A and one for corner B, at least 2 metres apart. Walk to A and tap Set board, then to B and tap it again. The little map shows both corners and your ★.</string>
     <string name="ar_look">Move the phone slowly so it can see the ground…</string>
     <string name="ar_mark1">Stand at the first-corner object and tap Set board</string>
     <string name="ar_mark2">Corner 1 saved. Now walk to the far-corner object and tap Set board.</string>
@@ -175,7 +175,7 @@
     <string name="sig_cold">Marco is far: more than %1$d squares from you.</string>
     <string name="sig_knight">(As a Knight you feel warm as cold.)</string>
     <string name="sig_card_title">Your signal: %1$s</string>
-    <string name="sig_card_why">After each of your turns you get a signal, measured from you to Marco, in steps (no diagonals). Compare it with where each traveller stands: ✓ means they fit, they could be Marco; ✗ means they can\'t be. Tap a traveller\'s name to read more.</string>
+    <string name="sig_card_why">After each of your turns you get a signal, measured from you to Marco, in steps (no diagonals). Compare it with where each traveller stands: ✓ fits this signal, ✗ does not. But Marco can plant a false signal (an echo), so trust several signals, not one. Tap a traveller\'s name to read more.</string>
     <string name="trend_up">Warmer than last turn: you got closer.</string>
     <string name="trend_down">Colder than last turn: you got farther.</string>
     <string name="trend_same">Same as last turn.</string>
@@ -247,6 +247,14 @@
     <string name="td_title">Decorations</string>
     <string name="td">Squares with a picture hide something: a helper, a danger, or nothing. Step on one to open it. Long-press any square to read it.</string>
     <string name="ta_title">Only one fits</string>
-    <string name="ta">Only %1$s still fits your signals. Tap Accuse and pick them. You get one try, so be sure.</string>
+    <string name="ta">Only %1$s fits your last signal. If earlier signals agree, tap Accuse and pick them. You get one try, so be sure.</string>
     <string name="cam_safety">Look up often and watch where you walk.</string>
+    <string name="your_start">You start on row %1$d, column %2$d: the ★ on the map.</string>
+    <string name="guide_a">Go to corner A on the little map and tap Set board.</string>
+    <string name="guide_b">Now walk to corner B and tap Set board. You are %1$s m from A (at least 2 m).</string>
+    <string name="guide_outside">You are outside the board. Go to: row %1$d, column %2$d.</string>
+    <string name="guide_on">You are on your square: row %1$d, column %2$d ✓</string>
+    <string name="guide_walk">You: row %1$d, column %2$d → Go to: row %3$d, column %4$d</string>
+    <string name="guide_lite">Your square: row %1$d, column %2$d. The board hangs around you.</string>
+    <string name="walked_one">walked 1 square</string>
 </resources>

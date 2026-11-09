@@ -22,7 +22,8 @@ import android.widget.TextView
 class Tale(private val act: Activity, private val layer: FrameLayout, private val banner: TextView) {
 
     class Card(val title: String, val what: String, val why: String = "", val img: Bitmap? = null,
-               val accent: Int = Art.GOLD, val button: String = "")
+               val accent: Int = Art.GOLD, val button: String = "",
+               val onButton: (() -> Unit)? = null, val button2: String = "", val onButton2: (() -> Unit)? = null)
 
     private val queue = ArrayDeque<Card>()
     private var open = false
@@ -66,7 +67,13 @@ class Tale(private val act: Activity, private val layer: FrameLayout, private va
             text = c.button.ifEmpty { act.getString(R.string.go_on) }; isAllCaps = false; textSize = 18f
             setBackgroundResource(R.drawable.btn_parchment); setTextColor(Art.INK); typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16) }
-            setOnClickListener { close(box) }
+            setOnClickListener { val go = c.onButton; if (go != null) go() else close(box) }
+        })
+        if (c.button2.isNotEmpty()) box.addView(Button(act).apply {
+            text = c.button2; isAllCaps = false; textSize = 18f
+            setBackgroundResource(R.drawable.btn_parchment); setTextColor(Art.INK); typeface = Typeface.SERIF
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
+            setOnClickListener { val go = c.onButton2; if (go != null) go() else close(box) }
         })
         val lp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
         lp.leftMargin = dp(20); lp.rightMargin = dp(20)

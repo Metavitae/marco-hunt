@@ -33,6 +33,9 @@ class ArState {
     var rAx = 1f; var rAz = 0f; var cAx = 0f; var cAz = 1f; var s = 1f
     private var pending1: FloatArray? = null
 
+    /** True after corner A is saved, until corner B is. */
+    val waitingCorner2: Boolean get() = pending1 != null
+
     /** How far the phone is from corner 1 while the second corner is awaited, in metres. */
     fun fromCorner1(): Float {
         val p1 = pending1 ?: return 0f

@@ -69,7 +69,7 @@
     <string name="you_win">¡Encontraste a Marco!</string>
     <string name="rival_wins">%1$s encontró a Marco primero.</string>
     <string name="marco_escapes">Marco escapó: nadie lo encontró en %1$d rondas.</string>
-    <string name="reveal">Marco era %1$s. Lanzó %2$d trampas y regalos y puso %3$d ecos (%4$d atrapados por un Catalejo). De los peligros que te tocaron, %5$d fueron trampas de Marco y %6$d fueron suerte.</string>
+    <string name="reveal">Marco era %1$s. Lanzó %2$d trampas y regalos y puso %3$d señales falsas, llamadas ecos (un Catalejo atrapó %4$d). Peligros que te tocaron: %5$d de sus trampas, %6$d de mala suerte.</string>
     <string name="again">Cazar otra vez</string>
     <string name="home">Inicio</string>
     <string name="you">Tú</string>
@@ -136,7 +136,7 @@
     <string name="lbl_chronicle">Crónica</string>
     <string name="round_short">Ronda %1$d / %2$d</string>
     <string name="actions_short">Acciones %1$d</string>
-    <string name="ar_hint">RA real: camina al objeto de la primera esquina y toca Fijar tablero; luego al objeto de la esquina opuesta y tócalo otra vez.</string>
+    <string name="ar_hint">Elige dos objetos en el suelo, uno para la esquina A y otro para la B, a 2 metros o más. Camina a A y toca Fijar tablero, luego a B y tócalo otra vez. El mapita muestra las dos esquinas y tu ★.</string>
     <string name="ar_look">Mueve el teléfono despacio para que vea el suelo…</string>
     <string name="ar_mark1">Párate en el objeto de la primera esquina y toca Fijar tablero</string>
     <string name="ar_mark2">Esquina 1 guardada. Ahora camina al objeto de la esquina opuesta y toca Fijar tablero.</string>
@@ -175,7 +175,7 @@
     <string name="sig_cold">Marco está lejos: a más de %1$d casillas de ti.</string>
     <string name="sig_knight">(Como Caballero, sientes lo tibio como frío.)</string>
     <string name="sig_card_title">Tu señal: %1$s</string>
-    <string name="sig_card_why">Después de cada turno tuyo recibes una señal, medida de ti a Marco, en pasos (sin diagonales). Compárala con dónde está cada viajero: ✓ quiere decir que encaja, podría ser Marco; ✗ quiere decir que no puede serlo. Toca el nombre de un viajero para leer más.</string>
+    <string name="sig_card_why">Después de cada turno tuyo recibes una señal, medida de ti a Marco, en pasos (sin diagonales). Compárala con dónde está cada viajero: ✓ encaja con esta señal, ✗ no encaja. Pero Marco puede poner una señal falsa (un eco), así que confía en varias señales, no en una. Toca el nombre de un viajero para leer más.</string>
     <string name="trend_up">Más caliente que el turno pasado: te acercaste.</string>
     <string name="trend_down">Más frío que el turno pasado: te alejaste.</string>
     <string name="trend_same">Igual que el turno pasado.</string>
@@ -247,6 +247,14 @@
     <string name="td_title">Decoraciones</string>
     <string name="td">Las casillas con dibujo esconden algo: una ayuda, un peligro o nada. Párate en una para abrirla. Deja presionada cualquier casilla para leerla.</string>
     <string name="ta_title">Solo uno encaja</string>
-    <string name="ta">Solo %1$s sigue encajando con tus señales. Toca Acusar y elígelo. Tienes un solo intento, así que asegúrate.</string>
+    <string name="ta">Solo %1$s encaja con tu última señal. Si las anteriores coinciden, toca Acusar y elígelo. Tienes un solo intento, así que asegúrate.</string>
     <string name="cam_safety">Levanta la vista seguido y fíjate por dónde caminas.</string>
+    <string name="your_start">Empiezas en la fila %1$d, columna %2$d: la ★ del mapa.</string>
+    <string name="guide_a">Ve a la esquina A del mapita y toca Fijar tablero.</string>
+    <string name="guide_b">Ahora camina a la esquina B y toca Fijar tablero. Estás a %1$s m de A (mínimo 2 m).</string>
+    <string name="guide_outside">Estás fuera del tablero. Ve a: fila %1$d, columna %2$d.</string>
+    <string name="guide_on">Estás en tu casilla: fila %1$d, columna %2$d ✓</string>
+    <string name="guide_walk">Tú: fila %1$d, columna %2$d → Ve a: fila %3$d, columna %4$d</string>
+    <string name="guide_lite">Tu casilla: fila %1$d, columna %2$d. El tablero cuelga a tu alrededor.</string>
+    <string name="walked_one">caminó 1 casilla</string>
 </resources>

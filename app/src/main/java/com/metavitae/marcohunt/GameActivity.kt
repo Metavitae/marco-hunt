@@ -116,7 +116,9 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         diary.start("board ${g.n}x${g.n} · level $level · tutorial $tutorial · you ${clsName(me.cls)} · ${g.players.size - 1} rivals · " +
             (if (resumed) "resumed from camp" else "new game") + "\nMarco is ${name(g.marco)} (secret)")
         tale.onShow = { c -> diary.line(g.round, "CARD ${c.title}: ${c.what} ${c.why}") }
-        if (tutorial && !resumed) teach(1, R.string.tw_title, getString(R.string.tw))
+        val startLine = getString(R.string.your_start, me.r + 1, me.c + 1)
+        if (tutorial && !resumed) teach(1, R.string.tw_title, getString(R.string.tw) + "\n\n" + startLine)
+        else if (!resumed) tale.say(startLine, 3200)
         refresh()
         ui.postDelayed({ loop() }, 500)
     }
@@ -158,6 +160,22 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     private lateinit var roundChip: TextView
     private lateinit var die: TextView
     private lateinit var oppsChip: TextView
+    private lateinit var hudFrame: FrameLayout
+    private lateinit var hudRoot: LinearLayout
+    private lateinit var midSlot: FrameLayout
+    private lateinit var miniMap: MiniMapView
+    private lateinit var guide: TextView
+    private lateinit var sacScroll: HorizontalScrollView
+    private var miniBig = false
+
+    /** While the camera is on, the guide line and the little map's phone dot follow the player. */
+    private val guideTick = object : Runnable {
+        override fun run() {
+            if (!cameraOn || isDestroyed) return
+            updateGuide()
+            ui.postDelayed(this, 500)
+        }
+    }
 
     /** Rounded parchment card (UI kit): fill, ink border, 12dp corners. */
     private fun card(fill: Int, stroke: Int = Art.INK, strokeDp: Int = 1, radiusDp: Int = 12) =
@@ -176,15 +194,16 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         val frame = FrameLayout(this).apply { setBackgroundColor(Art.PARCHMENT) }
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(10), dp(12), dp(10)) }
         frame.addView(root, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        hudFrame = frame; hudRoot = root
 
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        roundChip = text(14f, bold = true).apply { background = card(0xFFFBF3DF.toInt()); setPadding(dp(10), dp(8), dp(10), dp(8)) }
+        roundChip = text(13f, bold = true).apply { background = card(0xFFFBF3DF.toInt()); setPadding(dp(7), dp(8), dp(7), dp(8)) }
         die = TextView(this).apply {
             textSize = 24f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER; typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
             background = card(Art.MADDER, Art.INK, 2, 10)
-            layoutParams = LinearLayout.LayoutParams(dp(50), dp(50))
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
         }
-        oppsChip = text(14f, bold = true).apply { background = card(0xFFFBF3DF.toInt()); setPadding(dp(10), dp(8), dp(10), dp(8)) }
+        oppsChip = text(13f, bold = true).apply { background = card(0xFFFBF3DF.toInt()); setPadding(dp(7), dp(8), dp(7), dp(8)) }
         camBtn = iconButton("📷") { toggleCamera() }
         quietBtn = iconButton("🔈") { Signal.setQuiet(this, !Signal.quiet(this)); refresh() }
         header.addView(roundChip); header.addView(spring()); header.addView(die); header.addView(spring()); header.addView(oppsChip)
@@ -196,7 +215,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         root.addView(gap(6))
         signalBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(6), dp(12), dp(8)); visibility = View.GONE }
         signal = text(19f, bold = true).apply { gravity = Gravity.CENTER }
-        signalWhy = text(13f).apply { gravity = Gravity.CENTER }
+        signalWhy = text(13f).apply { gravity = Gravity.CENTER; minLines = 3 } // keeps its height so the board never jumps under a finger
         signalBox.addView(signal); signalBox.addView(signalWhy)
         signalBox.setOnClickListener { explainSignal() }
         root.addView(signalBox)
@@ -220,6 +239,21 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         root.addView(stage, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         root.addView(gap(8))
 
+        // what floats in the middle while the camera fills the screen: the little map and the guide line.
+        // The slot itself lets taps through to the camera board underneath.
+        midSlot = FrameLayout(this)
+        miniMap = MiniMapView(this).apply {
+            game = g; humanId = 0; elevation = dp(3).toFloat()
+            setOnClickListener { miniBig = !miniBig; placeMiniMap() }
+        }
+        midSlot.addView(miniMap)
+        placeMiniMap()
+        guide = TextView(this).apply {
+            textSize = 15f; setTextColor(0xFFFBF3DF.toInt()); typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD); gravity = Gravity.CENTER
+            background = card(0xDD3A2412.toInt(), Art.GOLD, 1, 12); setPadding(dp(10), dp(7), dp(10), dp(7))
+        }
+        midSlot.addView(guide, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM).apply { bottomMargin = dp(62) })
+
         ticker = text(14f).apply {
             maxLines = 1; ellipsize = TextUtils.TruncateAt.END
             background = card(0xFFFBF3DF.toInt(), 0xFFC9B892.toInt(), 1, 10); setPadding(dp(12), dp(8), dp(12), dp(8))
@@ -231,7 +265,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(suspects) })
         root.addView(gap(8))
         sac = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(sac) })
+        sacScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(sac) }
+        root.addView(sacScroll)
         root.addView(gap(10))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         restBtn = action(R.string.rest) { doRest() }
@@ -254,7 +289,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     private fun iconButton(label: String, onClick: () -> Unit) = TextView(this).apply {
         text = label; textSize = 20f; gravity = Gravity.CENTER
         setBackgroundResource(R.drawable.btn_parchment)
-        layoutParams = LinearLayout.LayoutParams(dp(46), dp(46)).apply { leftMargin = dp(8) }
+        layoutParams = LinearLayout.LayoutParams(dp(42), dp(42)).apply { leftMargin = dp(5) }
         setOnClickListener { onClick() }
     }
 
@@ -309,7 +344,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         refresh()
         walk(p.id, fr, fc, p.r, p.c) {
             val what = ArrayList<String>()
-            what.add(if (d == 0) getString(R.string.stayed) else getString(R.string.walked, d))
+            what.add(when (d) { 0 -> getString(R.string.stayed); 1 -> getString(R.string.walked_one); else -> getString(R.string.walked, d) })
             what.addAll(turnNews)
             val line = name(p) + ": " + what.joinToString(" · ")
             tale.say(line, 2400)
@@ -354,6 +389,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         turnOpen = false
         mode = Mode.WAIT
         divPicks.clear()
+        status.text = " " // your turn is over: don't keep saying "tap a lit square"
         if (g.over) { refresh(); ui.postDelayed({ loop() }, 300); return }
         g.endTurn(me)
         refresh()
@@ -556,7 +592,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     override fun onNotMarco(g: Game, q: Player) {
         proven.add(q.id)
         notMarcoNow = q.id
-        if (!g.current().human) turnNews.add(getString(R.string.not_marco, name(q)))
+        if (!g.current().human && q.id != 0) turnNews.add(getString(R.string.not_marco, name(q))) // you know you are not Marco
     }
 
     override fun onReveal(g: Game, marco: Player) {
@@ -669,6 +705,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         quietBtn.text = if (Signal.quiet(this)) "🔇" else "🔈"
         board.picked = divPicks.toSet()
         board.invalidate()
+        miniMap.lit = board.lit; miniMap.picked = pendingMove; miniMap.invalidate()
+        if (cameraOn) updateGuide()
         roundChip.text = getString(R.string.round_short, g.round, g.rules.turnLimit)
         val myTurn = turnOpen && g.current().human && !g.over
         die.text = if (myTurn) g.moveAllowance().toString() else "·"
@@ -682,13 +720,15 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             myTurn -> getString(R.string.your_turn, g.moveAllowance())
             else -> status.text
         }
+        status.visibility = if (cameraOn && status.text.isBlank()) View.GONE else View.VISIBLE
         val b = lastBand
-        signalBox.visibility = if (b == null) View.GONE else View.VISIBLE
+        signalBox.visibility = when { b != null -> View.VISIBLE; cameraOn -> View.GONE; else -> View.INVISIBLE }
         if (b != null) {
             signal.text = getString(R.string.signal_says, bandName(b)) + when { signalsSeen < 2 -> ""; trend > 0 -> "  ↑"; trend < 0 -> "  ↓"; else -> "  =" }
             val t = when { signalsSeen < 2 -> ""; trend > 0 -> getString(R.string.trend_up); trend < 0 -> getString(R.string.trend_down); else -> getString(R.string.trend_same) }
             signalWhy.text = meaning(b) + if (t.isNotEmpty()) "\n$t" else ""
-            signalBox.background = card(when (b) { Band.HOT -> 0xFFE9B3A6.toInt(); Band.WARM -> 0xFFF0D59B.toInt(); else -> 0xFFB9CDE6.toInt() }, Art.INK, 1, 14)
+            val tone = when (b) { Band.HOT -> 0xFFE9B3A6.toInt(); Band.WARM -> 0xFFF0D59B.toInt(); else -> 0xFFB9CDE6.toInt() }
+            signalBox.background = card(if (cameraOn) (tone and 0x00FFFFFF) or 0xE0000000.toInt() else tone, Art.INK, 1, 14)
         }
         // travellers: who fits your last signal (help depends on the level)
         suspects.removeAllViews()
@@ -774,10 +814,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         diary.line(g.round, "OVER · $head · $reveal")
         board.revealedMarco = m.id
         board.invalidate()
-        AlertDialog.Builder(this).setTitle(head).setMessage(reveal).setCancelable(false)
-            .setPositiveButton(R.string.again) { _, _ -> recreate() }
-            .setNegativeButton(R.string.home) { _, _ -> finish() }
-            .show()
+        tale.show(Tale.Card(head, reveal, button = getString(R.string.again), onButton = { recreate() },
+            button2 = getString(R.string.home), onButton2 = { finish() }))
     }
 
     /** The guided hunt: a card the first time each thing happens. */
@@ -829,6 +867,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             camView?.stop(); arView?.pauseAr(); arView?.closeAr(); arView = null; arState = null; camView = null; preview = null
             stage.removeAllViews()
             stage.addView(board, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER))
+            setHud(false)
             reattachOverlays()
             diary.line(g.round, "MAP board")
             refresh(); return
@@ -838,6 +877,8 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 7); return
         }
         cameraOn = true
+        setHud(true)
+        val startLine = getString(R.string.your_start, me.r + 1, me.c + 1) + "\n\n"
         val full = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         if (ArState.available(this)) {
             // Google AR (certified phones such as the 8T): the board is pinned to the ground by two objects
@@ -852,7 +893,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             reattachOverlays()
             try { av.resumeAr() } catch (e: Throwable) { news("AR: ${e.message}") }
             diary.line(g.round, "CAMERA board (real AR)")
-            tale.show(Tale.Card(getString(R.string.set_board), getString(R.string.ar_hint), getString(R.string.cam_safety)))
+            tale.show(Tale.Card(getString(R.string.set_board), startLine + getString(R.string.ar_hint), getString(R.string.cam_safety)))
             refresh(); return
         }
         val pv = androidx.camera.view.PreviewView(this)
@@ -873,7 +914,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         }, mainExecutor)
         cv.start()
         diary.line(g.round, "CAMERA board (camera-lite)")
-        tale.show(Tale.Card(getString(R.string.set_board), getString(R.string.cam_hint), getString(R.string.cam_safety)))
+        tale.show(Tale.Card(getString(R.string.set_board), startLine + getString(R.string.cam_hint), getString(R.string.cam_safety)))
         refresh()
     }
 
@@ -881,8 +922,70 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
     private fun reattachOverlays() {
         (banner.parent as? android.view.ViewGroup)?.removeView(banner)
         (camRow.parent as? android.view.ViewGroup)?.removeView(camRow)
-        stage.addView(banner, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP).apply { topMargin = dp(8); leftMargin = dp(8); rightMargin = dp(8) })
-        stage.addView(camRow, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM).apply { bottomMargin = dp(10) })
+        val host = if (cameraOn) midSlot else stage
+        host.addView(banner, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP).apply { topMargin = dp(8); leftMargin = dp(8); rightMargin = dp(8) })
+        host.addView(camRow, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM).apply { bottomMargin = dp(10) })
+    }
+
+    /**
+     * The floating screen (founder, Nov 8): with the camera on, the picture fills the whole screen and
+     * everything else floats over it, see-through, so nothing is ever out of sight. The stage moves behind
+     * the column of panels and the slot it left in the column stays empty, so taps there reach the camera board.
+     */
+    private fun setHud(on: Boolean) {
+        val inColumn = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+        if (on) {
+            val i = hudRoot.indexOfChild(stage)
+            hudRoot.removeView(stage)
+            hudRoot.addView(midSlot, i, inColumn)
+            hudFrame.addView(stage, 0, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        } else {
+            val i = hudRoot.indexOfChild(midSlot)
+            hudRoot.removeView(midSlot)
+            hudFrame.removeView(stage)
+            hudRoot.addView(stage, i, inColumn)
+        }
+        val glass = 0xE0FBF3DF.toInt()
+        status.background = if (on) card(glass, Art.INK, 1, 10) else null
+        status.setPadding(dp(8), if (on) dp(4) else 0, dp(8), if (on) dp(4) else 0)
+        ticker.background = card(if (on) glass else 0xFFFBF3DF.toInt(), 0xFFC9B892.toInt(), 1, 10)
+        ticker.setPadding(dp(12), dp(8), dp(12), dp(8))
+        sacScroll.background = if (on) card(glass, 0xFFC9B892.toInt(), 1, 10) else null
+        sacScroll.setPadding(if (on) dp(8) else 0, 0, if (on) dp(8) else 0, 0)
+        // compact over the camera: one line for the signal; tap it for the meaning
+        signalWhy.minLines = if (on) 0 else 3
+        signalWhy.visibility = if (on) View.GONE else View.VISIBLE
+        ui.removeCallbacks(guideTick)
+        if (on) ui.post(guideTick)
+    }
+
+    private fun placeMiniMap() {
+        val side = dp(if (miniBig) 240 else 120)
+        miniMap.layoutParams = FrameLayout.LayoutParams(side, side, Gravity.TOP or Gravity.END).apply { topMargin = dp(8) }
+    }
+
+    /** Says where you are and where to go, from the moment the camera opens. */
+    private fun updateGuide() {
+        val st = arState
+        val target = if (pendingMove >= 0) pendingMove else g.idx(me.r, me.c)
+        val tr = target / g.n + 1; val tc = target % g.n + 1
+        var hereIdx = -1
+        guide.text = when {
+            st == null -> getString(R.string.guide_lite, tr, tc)
+            !st.tracking -> getString(R.string.ar_look)
+            !st.ready && st.waitingCorner2 -> getString(R.string.guide_b, String.format(java.util.Locale.US, "%.1f", st.fromCorner1()))
+            !st.ready -> getString(R.string.guide_a)
+            else -> {
+                val h = st.squareHere(g.n)
+                if (h != null) hereIdx = g.idx(h[0], h[1])
+                when {
+                    h == null -> getString(R.string.guide_outside, tr, tc)
+                    hereIdx == target -> getString(R.string.guide_on, tr, tc)
+                    else -> getString(R.string.guide_walk, h[0] + 1, h[1] + 1, tr, tc)
+                }
+            }
+        }
+        if (miniMap.here != hereIdx) { miniMap.here = hereIdx; miniMap.invalidate() }
     }
 
     override fun onRequestPermissionsResult(code: Int, perms: Array<String>, results: IntArray) {
