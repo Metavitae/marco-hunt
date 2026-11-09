@@ -17,6 +17,8 @@ class BoardView(ctx: Context) : View(ctx) {
     var lit: Set<Int> = emptySet()
     var picked: Set<Int> = emptySet()
     var revealedMarco = -1
+    /** Tokens on the move (walk animation): player id -> (row, col) as floats. */
+    val anim = HashMap<Int, FloatArray>()
     var onTap: ((Int, Int) -> Unit)? = null
     var onLongTap: ((Int, Int) -> Unit)? = null
     private var downAt = 0L
@@ -26,6 +28,7 @@ class BoardView(ctx: Context) : View(ctx) {
     private val pickPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Art.LAPIS; alpha = 140 }
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 5f; color = Art.MADDER }
     private val bg = Paint().apply { color = Art.PARCHMENT }
+    private val frame = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 5f; color = Art.INK }
 
     override fun onMeasure(w: Int, h: Int) {
         val size = minOf(MeasureSpec.getSize(w), MeasureSpec.getSize(h).takeIf { it > 0 } ?: MeasureSpec.getSize(w))
@@ -56,7 +59,7 @@ class BoardView(ctx: Context) : View(ctx) {
             if (!g.decorated(i)) continue
             val r = rect(i / g.n, i % g.n, s, s * 0.2f)
             if (!g.opened[i]) {
-                Art.draw(context, c, Art.DECO[(i * 7 + 3) % 4], r, 0x55A0815A, "✦")
+                Art.draw(context, c, Art.DECO[(i * 7 + 3) % 4], r, 0x55A0815A, Art.DECO_LABEL[(i * 7 + 3) % 4])
             } else {
                 val ct = g.content[i]
                 when {
@@ -71,20 +74,19 @@ class BoardView(ctx: Context) : View(ctx) {
                 }
             }
         }
-        // travellers (several on one square are offset a little)
+        // travellers: a pawn with a soft shadow, class colour and number (several on one square are offset a little)
         val seen = HashMap<Int, Int>()
         for (p in g.players) {
-            val i = g.idx(p.r, p.c)
-            val k = seen.getOrDefault(i, 0); seen[i] = k + 1
-            val off = k * s * 0.18f
-            val r = RectF(p.c * s + s * 0.12f + off, p.r * s + s * 0.12f + off, p.c * s + s * 0.88f + off, p.r * s + s * 0.88f + off)
-            val label = if (p.id == humanId) "★" else (p.id).toString()
-            Art.draw(context, c, Art.CLASS[p.cls.ordinal], r, Art.CLASS_COLOR[p.cls.ordinal], label, round = true)
-            if (p.id == humanId || p.id == revealedMarco) {
-                ring.color = if (p.id == humanId) Art.LAPIS else Art.MADDER
-                c.drawOval(r, ring)
-            }
+            val a = anim[p.id]
+            val pr = a?.get(0) ?: p.r.toFloat(); val pc = a?.get(1) ?: p.c.toFloat()
+            val i = g.idx(Math.round(pr), Math.round(pc))
+            val k = if (a != null) 0 else seen.getOrDefault(i, 0).also { seen[i] = it + 1 }
+            val off = k * s * 0.16f
+            Art.pawn(c, RectF(pc * s + s * 0.08f + off, pr * s + s * 0.04f + off, pc * s + s * 0.92f + off, pr * s + s * 0.96f + off),
+                Art.CLASS_COLOR[p.cls.ordinal], if (p.id == humanId) "★" else p.id.toString(),
+                when { p.id == humanId -> Art.LAPIS; p.id == revealedMarco -> Art.MADDER; else -> 0 }, moving = a != null)
         }
+        c.drawRect(1f, 1f, width - 1f, height - 1f, frame)
     }
 
     private fun rect(r: Int, c: Int, s: Float, inset: Float) = RectF(c * s + inset, r * s + inset, (c + 1) * s - inset, (r + 1) * s - inset)

@@ -29,6 +29,8 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     var lit: Set<Int> = emptySet()
     var picked: Int = -1
     var revealedMarco = -1
+    /** Tokens on the move (walk animation): player id -> (row, col). */
+    val anim = HashMap<Int, FloatArray>()
     var onTap: ((Int, Int) -> Unit)? = null
     /** Square size in metres and eye height (walk mode). */
     var squareM = 1.0f
@@ -172,9 +174,9 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
             val i = g.idx(r, cc)
             if (!g.decorated(i)) continue
             val p = project(world(r - pr, cc - pc, 0.05f)) ?: continue
-            val size = (focal() * 0.35f * squareM / p[2]).coerceIn(10f, 220f)
+            val size = (focal() * 0.35f * squareM / p[2]).coerceIn(dp(22f), 220f)
             val rect = RectF(p[0] - size / 2, p[1] - size, p[0] + size / 2, p[1])
-            if (!g.opened[i]) Art.draw(context, c, Art.DECO[(i * 7 + 3) % 4], rect, 0xCCA0815A.toInt(), "✦")
+            if (!g.opened[i]) Art.draw(context, c, Art.DECO[(i * 7 + 3) % 4], rect, 0xCCA0815A.toInt(), Art.DECO_LABEL[(i * 7 + 3) % 4])
             else {
                 val ct = g.content[i]
                 val cr = if (ct.isPeril) Art.creatureFor(ct, i) else null
@@ -182,17 +184,52 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
                 else Art.draw(context, c, if (ct.isPeril) Art.HOLE else Art.CONTAINER[i % 3], rect, if (ct.isPeril) 0xCC402A1A.toInt() else 0xCCC9A227.toInt(), "")
             }
         }
-        // travellers: a class banner on a pole over each square (Marco's looks like anyone's)
+        // travellers: a class banner on a tall pole over each square (Marco's looks like anyone's).
+        // Founder, Nov 7: "the poles became invisible at a distance" -> poles and flags never get smaller
+        // than a thumb's width, and travellers outside the picture show as a chip at the edge, pointing to them.
         for (p in g.players) {
             if (p.id == humanId) continue
-            val base = project(world(p.r - pr, p.c - pc, 0f)) ?: continue
-            val top = project(world(p.r - pr, p.c - pc, 2.2f)) ?: continue
-            pillar.color = 0xFF5A3A1E.toInt(); c.drawLine(base[0], base[1], top[0], top[1], pillar)
-            val w = (focal() * 0.5f / top[2]).coerceIn(24f, 260f)
-            val flag = RectF(top[0], top[1], top[0] + w, top[1] + w * 0.6f)
-            Art.draw(context, c, "banner_" + Art.CLASS[p.cls.ordinal].removePrefix("class_"), flag, Art.CLASS_COLOR[p.cls.ordinal], "${p.id}")
+            val a = anim[p.id]
+            val tr = (a?.get(0) ?: p.r.toFloat()) - pr; val tc = (a?.get(1) ?: p.c.toFloat()) - pc
+            val base = project(world(tr, tc, 0f))
+            val top = project(world(tr, tc, 2.6f))
+            val colour = Art.CLASS_COLOR[p.cls.ordinal]
+            val onScreen = base != null && top != null && top[0] in 0f..width.toFloat() && top[1] in 0f..height.toFloat()
+            if (!onScreen) { edgeChip(c, p.id, colour, top ?: base); continue }
+            pole.strokeWidth = (focal() * 0.06f / base!![2]).coerceIn(dp(5f), 40f)
+            poleEdge.strokeWidth = pole.strokeWidth + dp(3f)
+            c.drawLine(base[0], base[1], top!![0], top[1], poleEdge); c.drawLine(base[0], base[1], top[0], top[1], pole)
+            val w = (focal() * 0.6f / top[2]).coerceIn(dp(46f), 280f)
+            val flag = RectF(top[0], top[1], top[0] + w, top[1] + w * 0.62f)
+            glowFill.color = (colour and 0x00FFFFFF) or 0x66000000
+            c.drawRoundRect(RectF(flag.left - dp(4f), flag.top - dp(4f), flag.right + dp(4f), flag.bottom + dp(4f)), dp(8f), dp(8f), glowFill)
+            Art.draw(context, c, "banner_" + Art.CLASS[p.cls.ordinal].removePrefix("class_"), flag, colour, "${p.id}")
             if (p.id == revealedMarco) c.drawText("☀", top[0], top[1] - 10f, hint)
         }
+    }
+
+    private fun dp(v: Float) = v * resources.displayMetrics.density
+    private val pole = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFF2C0.toInt(); strokeCap = Paint.Cap.ROUND }
+    private val poleEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF3A2412.toInt(); strokeCap = Paint.Cap.ROUND }
+    private val glowFill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val chipText = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF3A2412.toInt(); textAlign = Paint.Align.CENTER; isFakeBoldText = true }
+
+    /** A traveller outside the picture: a chip on the nearest edge with an arrow (or "behind you"). */
+    private fun edgeChip(c: Canvas, id: Int, colour: Int, at: FloatArray?) {
+        val m = dp(30f)
+        val cx: Float; val cy: Float; val arrow: String
+        if (at == null) { cx = width / 2f + (id - 2) * dp(64f); cy = height - dp(96f); arrow = "↓" }
+        else {
+            cx = at[0].coerceIn(m, width - m); cy = at[1].coerceIn(m + dp(56f), height - dp(96f))
+            arrow = when { at[0] < m -> "←"; at[0] > width - m -> "→"; at[1] < m + dp(56f) -> "↑"; else -> "↓" }
+        }
+        glowFill.color = colour
+        val r = RectF(cx - dp(30f), cy - dp(18f), cx + dp(30f), cy + dp(18f))
+        c.drawRoundRect(r, dp(18f), dp(18f), glowFill)
+        poleEdge.strokeWidth = dp(2f); poleEdge.style = Paint.Style.STROKE
+        c.drawRoundRect(r, dp(18f), dp(18f), poleEdge); poleEdge.style = Paint.Style.FILL_AND_STROKE
+        chipText.textSize = dp(17f)
+        c.drawText("$arrow $id", cx, cy - (chipText.descent() + chipText.ascent()) / 2, chipText)
     }
 
     override fun onTouchEvent(e: MotionEvent): Boolean {

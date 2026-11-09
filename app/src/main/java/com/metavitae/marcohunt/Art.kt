@@ -37,9 +37,28 @@ object Art {
         if (round) { c.drawOval(r, fill); c.drawOval(r, ink) }
         else { c.drawRoundRect(r, r.width() * 0.18f, r.height() * 0.18f, fill); c.drawRoundRect(r, r.width() * 0.18f, r.height() * 0.18f, ink) }
         if (label.isNotEmpty()) {
-            text.textSize = r.height() * (if (label.length <= 2) 0.5f else 0.28f)
+            val glyphs = label.codePointCount(0, label.length)
+            text.textSize = r.height() * (when { glyphs == 1 && label.codePointAt(0) > 0x2000 -> 0.62f; label.length <= 2 -> 0.5f; else -> 0.28f })
             c.drawText(label, r.centerX(), r.centerY() - (text.descent() + text.ascent()) / 2, text)
         }
+    }
+
+    private val shadow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x55301A08 }
+    private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+
+    /** A game piece (until painted tokens exist): head and base, soft shadow, class colour, number on the base. */
+    fun pawn(c: Canvas, r: RectF, color: Int, label: String, ring: Int, moving: Boolean = false) {
+        val w = r.width(); val h = r.height()
+        val lift = if (moving) h * 0.06f else 0f
+        c.drawOval(RectF(r.left + w * 0.14f, r.bottom - h * 0.16f, r.right - w * 0.14f, r.bottom), shadow)
+        val base = RectF(r.left + w * 0.12f, r.top + h * 0.40f - lift, r.right - w * 0.12f, r.bottom - h * 0.06f - lift)
+        val head = RectF(r.left + w * 0.28f, r.top + h * 0.02f - lift, r.right - w * 0.28f, r.top + h * 0.46f - lift)
+        fill.color = color
+        c.drawRoundRect(base, w * 0.22f, w * 0.22f, fill); c.drawRoundRect(base, w * 0.22f, w * 0.22f, ink)
+        c.drawOval(head, fill); c.drawOval(head, ink)
+        if (ring != 0) { rim.color = ring; rim.strokeWidth = w * 0.07f; c.drawRoundRect(base, w * 0.22f, w * 0.22f, rim) }
+        text.textSize = base.height() * 0.62f
+        c.drawText(label, base.centerX(), base.centerY() - (text.descent() + text.ascent()) / 2, text)
     }
 
     // stable names (see the asset list in the Log)
@@ -60,7 +79,10 @@ object Art {
     const val ORACLE = "square_oracle"
     const val SPOTLIGHT = "square_spotlight"
     val LANDMARK = arrayOf("landmark_labyrinth", "landmark_lighthouse", "landmark_town", "landmark_bridge", "landmark_caravan", "landmark_fleece")
-    val LANDMARK_LABEL = arrayOf("LAB", "LGT", "TWN", "BRG", "CMP", "FLC")
+    // placeholder pictures until the painted landmarks arrive (emoji: colourful and readable at a glance)
+    val LANDMARK_LABEL = arrayOf("🌀", "🗼", "🏰", "🌉", "⛺", "🌳")
     val MARK = arrayOf("mark_fountain", "mark_perch", "mark_palm", "mark_shrine")
-    val MARK_LABEL = arrayOf("≈", "⌃", "♣", "⌂")
+    val MARK_LABEL = arrayOf("⛲", "🦅", "🌴", "🛕")
+    /** Unopened decorations (all four hide the same kinds of things). */
+    val DECO_LABEL = arrayOf("🪨", "🌾", "🏺", "🌵")
 }

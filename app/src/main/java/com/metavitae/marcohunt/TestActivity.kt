@@ -43,6 +43,9 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
     private val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
     private val summary = ArrayList<String>()
     private lateinit var root: LinearLayout
+    private lateinit var scroll: ScrollView
+    private var sayView: TextView? = null
+    private var afterCameraOk: (() -> Unit)? = null
     private var arState: ArState? = null
     private var arView: ArView? = null
     private var camView: CameraBoardView? = null
@@ -54,7 +57,8 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
         val r = Rules(); r.n = 10; r.players = 2; r.teams = false
         game = Game(r, 1)
         root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Art.PARCHMENT); setPadding(dp(16), dp(20), dp(16), dp(24)) }
-        setContentView(ScrollView(this).apply { setBackgroundColor(Art.PARCHMENT); addView(root) })
+        scroll = ScrollView(this).apply { setBackgroundColor(Art.PARCHMENT); addView(root) }
+        setContentView(scroll)
         (getSystemService(SENSOR_SERVICE) as SensorManager).getDefaultSensor(Sensor.TYPE_LIGHT)?.let {
             (getSystemService(SENSOR_SERVICE) as SensorManager).registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
@@ -87,14 +91,30 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
 
     private val plan by lazy { listOf(
         T("facts", "F · Phone facts", "Automatic. What this phone has: Google AR, sensors, camera.", false) { facts(false) },
-        T("still", "S1 · Stand still", "30 seconds standing still. Does the board stay put?", false) { stillTest() },
-        T("walk", "S2 · Two objects and back", "Set the board at two objects, walk back to the first. How far did it move?", true) { walkTest() },
-        T("here", "S3 · I'm here", "Walk to 3 squares. Does the phone know where you are?", true) { hereTest(1) },
-        T("light", "S4 · Sun and shade", "Can you see the lines and pillars? The light sensor measures the light.", false) { lightTest() },
+        T("still", "S1 · Stand still", "30 seconds standing still. Does the board stay put?", false) { withCamera { stillTest() } },
+        T("walk", "S2 · Two objects and back", "Set the board at two objects, walk back to the first. How far did it move?", true) { withCamera { walkTest() } },
+        T("here", "S3 · I'm here", "Set the board once, then walk to 3 squares. Does the phone know where you are?", true) { withCamera { hereTest() } },
+        T("light", "S4 · Sun and shade", "Can you see the lines and pillars? The light sensor measures the light.", false) { withCamera { lightTest() } },
     ) }
+
+    private fun withCamera(go: () -> Unit) {
+        if (checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) { go(); return }
+        afterCameraOk = go
+        requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 8)
+    }
+
+    override fun onRequestPermissionsResult(code: Int, perms: Array<String>, results: IntArray) {
+        super.onRequestPermissionsResult(code, perms, results)
+        if (code != 8) return
+        val go = afterCameraOk; afterCameraOk = null
+        if (results.isNotEmpty() && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) go?.invoke()
+        else root.addView(big(getString(R.string.cam_denied)), 1)
+    }
 
     private fun menu() {
         stopCamera()
+        sayView = null
+        setContentView(scroll)
         root.removeAllViews()
         root.addView(title(getString(R.string.app_name) + " · Tests"))
         root.addView(small("Results are saved on this phone in Download/MarcoHunt/tests. Each test starts with 3-2-1 and a beep and ends with two beeps.").apply { gravity = Gravity.CENTER })
@@ -138,12 +158,10 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
     // ------------------------------------------------------------------ countdown and beeps
 
     private fun countdown(then: () -> Unit) {
-        val t = big("3").apply { textSize = 96f }
-        root.addView(t, 0)
         var n = 3
         fun step() {
-            if (n == 0) { root.removeView(t); tone?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400); then(); return }
-            t.text = n.toString(); tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 150); n--
+            if (n == 0) { say("Go"); tone?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400); then(); return }
+            say(n.toString()); tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 150); n--
             ui.postDelayed({ step() }, 1000)
         }
         step()
@@ -158,20 +176,20 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
 
     private fun startCamera(): FrameLayout {
         stopCamera()
-        val h = (resources.displayMetrics.heightPixels * 0.55f).toInt()
-        val stage = FrameLayout(this).apply { background = card(Art.PARCHMENT, Art.INK, 2) }
+        val stage = FrameLayout(this).apply { setBackgroundColor(0xFF000000.toInt()) }
         val cv = CameraBoardView(this).apply { game = this@TestActivity.game; humanId = 0 }
+        val full = { FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT) }
         if (ArState.available(this)) {
             val st = ArState(); val av = ArView(this, st)
             cv.ar = st; av.onFrame = { cv.postInvalidate() }
-            stage.addView(av, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, h))
-            stage.addView(cv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, h))
+            stage.addView(av, full())
+            stage.addView(cv, full())
             arState = st; arView = av
             try { av.resumeAr() } catch (e: Throwable) { }
         } else {
             val pv = androidx.camera.view.PreviewView(this)
-            stage.addView(pv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, h))
-            stage.addView(cv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, h))
+            stage.addView(pv, full())
+            stage.addView(cv, full())
             val f = androidx.camera.lifecycle.ProcessCameraProvider.getInstance(this)
             f.addListener({
                 try {
@@ -190,15 +208,55 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
         camView = null; arView = null; arState = null
     }
 
+    /**
+     * A test screen. With a camera it is the game's layout: the picture fills the screen, what to do
+     * floats on top and the buttons float at the bottom, so nothing needs scrolling while you walk.
+     */
     private fun screen(name: String, steps: String, stage: View?): LinearLayout {
-        root.removeAllViews()
-        root.addView(TextView(this).apply { text = name; textSize = 22f; setTextColor(Art.INK); typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD) })
-        if (stage != null) root.addView(stage)
-        root.addView(big(steps))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(actions)
-        root.addView(button("Back to the tests") { menu() })
+        val back = button("Back to the tests") { menu() }
+        if (stage == null) {
+            root.removeAllViews()
+            root.addView(TextView(this).apply { text = name; textSize = 22f; setTextColor(Art.INK); typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD) })
+            root.addView(big(steps))
+            root.addView(actions)
+            root.addView(back)
+            return actions
+        }
+        val frame = FrameLayout(this)
+        frame.addView(stage, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        val top = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; background = card(0xEEFBF3DF.toInt()); setPadding(dp(14), dp(10), dp(14), dp(10)) }
+        top.addView(TextView(this).apply { text = name; textSize = 16f; setTextColor(Art.INK); typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD); gravity = Gravity.CENTER })
+        val words = big(steps).apply { textSize = 20f }
+        top.addView(words)
+        sayView = words
+        frame.addView(top, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP).apply { setMargins(dp(10), dp(10), dp(10), 0) })
+        val bottom = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        bottom.addView(actions); bottom.addView(back)
+        frame.addView(bottom, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM).apply { setMargins(dp(10), 0, dp(10), dp(10)) })
+        setContentView(frame)
         return actions
+    }
+
+    /** Changes what the test screen says. */
+    private fun say(t: String) { sayView?.text = t }
+
+    /**
+     * The game's Set board, word for word (real AR). Returns what mark() returned, or -1 if the phone
+     * is not tracking yet. Every tap says what happened.
+     */
+    private fun setBoardTap(): Int {
+        val st = arState ?: return -1
+        if (!st.tracking) { say(getString(R.string.ar_look)); return -1 }
+        val k = st.mark(game.n, camView?.eyeM ?: 1.4f)
+        when (k) {
+            0 -> say(getString(R.string.ar_too_close, (st.fromCorner1() * 100).toInt()))
+            1 -> say(getString(R.string.ar_mark2))
+            else -> { camView?.squareM = st.s; say(getString(R.string.ar_ready, (st.s * 100).toInt())) }
+        }
+        if (k > 0) tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
+        camView?.invalidate()
+        return k
     }
 
     // ------------------------------------------------------------------ F · facts (automatic)
@@ -233,6 +291,7 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
     private fun stillTest() {
         val stage = startCamera()
         val a = screen("S1 · Stand still", "1 Point the phone at the ground.\n2 Tap Go and stand still.\n3 Wait for two beeps.", stage)
+        if (arState == null) a.addView(button(getString(R.string.set_board)) { camView?.setHeadingHere(); say(getString(R.string.board_set)) })
         a.addView(button("Go") {
             countdown {
                 val rows = StringBuilder("t_s,tracking,cam_x_m,cam_z_m,heading_deg\n")
@@ -258,7 +317,7 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
                         val line = if (st != null) "S1 stand still (real AR): phone moved at most ${(maxMove * 100).toInt()} cm, tracking ${100 * tracked / maxOf(1, samples)}% · ${if (maxMove < 0.10f) "PASS" else "CHECK"} (pass under 10 cm)"
                                    else "S1 stand still (camera-lite): heading wandered at most ${maxTurn.toInt()}° · ${if (maxTurn < 5f) "PASS" else "CHECK"} (pass under 5°)"
                         result(line); writeSummary(); endBeep()
-                        root.addView(big(line), 1)
+                        say(line)
                     }
                 }
                 sample()
@@ -270,57 +329,67 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
 
     private fun walkTest() {
         val stage = startCamera()
-        val a = screen("S2 · Two objects and back", "1 Stand at object A. Tap A.\n2 Walk to object B. Tap B.\n3 Walk back to A. Tap Back.", stage)
+        val a = screen("S2 · Two objects and back", getString(R.string.ar_mark1), stage)
         var ax = 0f; var az = 0f
-        a.addView(button("A — I'm at the first object") {
-            val st = arState ?: return@button
-            if (!st.tracking) { root.addView(big("Move the phone slowly so it sees the ground."), 1); return@button }
-            countdown { st.mark(game.n, 1.4f); ax = st.camX; az = st.camZ; root.addView(big("A saved. Walk to B."), 1) }
-        })
-        a.addView(button("B — I'm at the second object") {
-            val st = arState ?: return@button
-            st.mark(game.n, 1.4f)
-            camView?.squareM = st.s
-            val d = sqrt((st.camX - ax) * (st.camX - ax) + (st.camZ - az) * (st.camZ - az))
-            result("S2 A to B: the phone measured ${(d * 100).toInt()} cm between the objects; squares ${(st.s * 100).toInt()} cm")
-            root.addView(big("B saved: ${(d * 100).toInt()} cm from A. Walk back to A."), 1)
-            tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
-        })
-        a.addView(button("Back — I'm at A again") {
+        val backBtn = button("I'm back at the first object") {
             val st = arState ?: return@button
             val e = sqrt((st.camX - ax) * (st.camX - ax) + (st.camZ - az) * (st.camZ - az))
             val line = "S2 walk back to A: the board moved ${(e * 100).toInt()} cm · ${if (e < 0.25f) "PASS" else "CHECK"} (pass under 25 cm)"
             save("S2_walk.csv", "a_x,a_z,back_x,back_z,error_cm\n%.3f,%.3f,%.3f,%.3f,%d\n".format(Locale.US, ax, az, st.camX, st.camZ, (e * 100).toInt()))
             result(line); writeSummary(); endBeep()
-            root.addView(big(line), 1)
+            say(line)
+        }.apply { visibility = View.GONE }
+        a.addView(button(getString(R.string.set_board)) {
+            val st = arState ?: return@button
+            when (setBoardTap()) {
+                1 -> { ax = st.camX; az = st.camZ }
+                2 -> {
+                    val d = sqrt((st.camX - ax) * (st.camX - ax) + (st.camZ - az) * (st.camZ - az))
+                    result("S2 A to B: the phone measured ${(d * 100).toInt()} cm between the objects; squares ${(st.s * 100).toInt()} cm")
+                    say(getString(R.string.ar_ready, (st.s * 100).toInt()) + "\nWalk back to the first object.")
+                    backBtn.visibility = View.VISIBLE
+                }
+            }
         })
+        a.addView(backBtn)
     }
 
     // ------------------------------------------------------------------ S3 · I'm here (real AR)
 
-    private val hereRows = StringBuilder("round,target_r,target_c,phone_r,phone_c,off_squares\n")
-    private var hereHits = 0
-
-    private fun hereTest(round: Int) {
+    /** One board for all three rounds: the camera and the board stay, only the blue square changes. */
+    private fun hereTest() {
+        val rows = StringBuilder("round,target_r,target_c,phone_r,phone_c,off_squares\n")
+        var hits = 0
+        var round = 1
+        var target = intArrayOf(0, 0)
         val stage = startCamera()
-        val target = intArrayOf((1..8).random(), (1..8).random())
-        camView?.picked = game.idx(target[0], target[1])
-        val a = screen("S3 · I'm here ($round of 3)", "1 Set the board: tap A at one object, B at the other.\n2 Walk to the blue square (row ${target[0] + 1}, column ${target[1] + 1}).\n3 Tap I'm here.", stage)
-        a.addView(button("Set board (A, then B)") { arState?.let { st -> if (st.mark(game.n, 1.4f) == 2) { camView?.squareM = st.s; tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 200) } } })
-        a.addView(button("I'm here") {
+        val a = screen("S3 · I'm here", getString(R.string.ar_mark1), stage)
+        fun nextSquare() {
+            target = intArrayOf((1..8).random(), (1..8).random())
+            camView?.picked = game.idx(target[0], target[1])
+            camView?.invalidate()
+            say("Square $round of 3: walk to the blue square (row ${target[0] + 1}, column ${target[1] + 1}), then tap I'm here.")
+        }
+        val hereBtn = button(getString(R.string.im_here)) {
             val st = arState ?: return@button
             val here = st.squareHere(game.n)
             val off = if (here == null) -1 else kotlin.math.abs(here[0] - target[0]) + kotlin.math.abs(here[1] - target[1])
-            if (off in 0..1) hereHits++
-            hereRows.append("$round,${target[0] + 1},${target[1] + 1},${here?.get(0)?.plus(1) ?: ""},${here?.get(1)?.plus(1) ?: ""},$off\n")
+            if (off in 0..1) hits++
+            rows.append("$round,${target[0] + 1},${target[1] + 1},${here?.get(0)?.plus(1) ?: ""},${here?.get(1)?.plus(1) ?: ""},$off\n")
             endBeep()
-            if (round < 3) hereTest(round + 1) else {
-                save("S3_here.csv", hereRows.toString())
-                val line = "S3 I'm here: $hereHits of 3 within 1 square · ${if (hereHits == 3) "PASS" else "CHECK"}"
+            if (round < 3) { round++; nextSquare() } else {
+                save("S3_here.csv", rows.toString())
+                val line = "S3 I'm here: $hits of 3 within 1 square · ${if (hits == 3) "PASS" else "CHECK"} · squares ${(st.s * 100).toInt()} cm"
                 result(line); writeSummary()
                 menu(); root.addView(big(line), 1)
             }
-        })
+        }.apply { visibility = View.GONE }
+        lateinit var setBtn: Button
+        setBtn = button(getString(R.string.set_board)) {
+            if (setBoardTap() == 2) { setBtn.visibility = View.GONE; hereBtn.visibility = View.VISIBLE; nextSquare() }
+        }
+        a.addView(setBtn)
+        a.addView(hereBtn)
     }
 
     // ------------------------------------------------------------------ S4 · sun and shade
@@ -332,7 +401,7 @@ class TestActivity : androidx.activity.ComponentActivity(), SensorEventListener 
             val line = "S4 light ${if (lux >= 0) "${lux.toInt()} lux" else "(no light sensor)"}: lines and pillars ${if (easy) "easy" else "hard"} to see"
             save("S4_light.csv", "lux,easy\n${lux.toInt()},$easy\n")
             result(line); writeSummary(); endBeep()
-            root.addView(big(line), 1)
+            say(line)
         }
         a.addView(button("Easy to see") { answer(true) })
         a.addView(button("Hard to see") { answer(false) })

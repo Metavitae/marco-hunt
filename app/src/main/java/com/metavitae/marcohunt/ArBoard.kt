@@ -33,12 +33,23 @@ class ArState {
     var rAx = 1f; var rAz = 0f; var cAx = 0f; var cAz = 1f; var s = 1f
     private var pending1: FloatArray? = null
 
-    /** Two-point setting: call at Marker 1 (square 1,1) then at Marker 2 (the far corner). Returns 1 or 2 (done). */
+    /** How far the phone is from corner 1 while the second corner is awaited, in metres. */
+    fun fromCorner1(): Float {
+        val p1 = pending1 ?: return 0f
+        return sqrt((camX - p1[0]) * (camX - p1[0]) + (camZ - p1[1]) * (camZ - p1[1]))
+    }
+
+    /**
+     * Two-point setting: call at Marker 1 (square 1,1) then at Marker 2 (the far corner).
+     * Returns 1 (corner 1 saved), 2 (done) or 0 (corner 2 refused: too close to corner 1; walk further and tap again).
+     * The refusal exists because two quick taps on one spot used to make a board with 2 cm squares (founder's tests, Nov 7).
+     */
     fun mark(n: Int, eye: Float): Int {
         val p1 = pending1
         if (p1 == null) { pending1 = floatArrayOf(camX, camZ, camY - eye); ready = false; return 1 }
         val vx = camX - p1[0]; val vz = camZ - p1[1]
-        val len = sqrt(vx * vx + vz * vz).coerceAtLeast(0.3f)
+        val len = sqrt(vx * vx + vz * vz)
+        if (len < MIN_CORNERS_M) return 0
         val ux = vx / len; val uz = vz / len
         val k = 0.70710678f
         // rows and columns run at 45 degrees either side of the diagonal (same rule on every phone, so no mirror image)
@@ -59,6 +70,9 @@ class ArState {
     }
 
     companion object {
+        /** The two corners must be at least this far apart. */
+        const val MIN_CORNERS_M = 2f
+
         /** True when Google AR is installed and supported on this phone. */
         fun available(ctx: Context): Boolean = try {
             // the first answer can be "still checking": ask again a few times (at most about half a second)
