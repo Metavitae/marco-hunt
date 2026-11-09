@@ -302,7 +302,7 @@
     <string name="sp_h3w">Squares you can only reach through a pass turn red. A Tablet of Gold 🥇 saves you once.</string>
     <string name="sp_h4_t">Robbers</string>
     <string name="sp_h4">On the way home, anyone with 3 gifts can land on you and try to take your treasure: it works 1 time in 2. You can rob them the same way.</string>
-    <string name="sp_h4w">If you are robbed, you lose a turn and go back to the Khan for another. You can't rob the one who just robbed you.</string>
+    <string name="sp_h4w">If you are robbed, you lose a turn and go back to the Khan for another. You can\'t rob the one who just robbed you.</string>
     <string name="sp_robbed_short">robbed</string>
     <string name="sp_goal_home">Carry the treasure home to Venice ⚓. Rivals can rob you.</string>
     <string name="sp_goal_back">Go back to the Khan 👑 for another treasure, or land on someone who has one.</string>
@@ -311,7 +311,7 @@
     <string name="sp_roll">Roll</string>
     <string name="sp_tap_square">Tap a square</string>
     <string name="sp_pick">You rolled %1$d. Gold is safe, red is through a pass. Your own square means stay.</string>
-    <string name="sp_not_there">You can't reach that square. Tap a gold or red one.</string>
+    <string name="sp_not_there">You can\'t reach that square. Tap a gold or red one.</string>
     <string name="sp_cross_t">Through the pass?</string>
     <string name="sp_cross">It skips almost a whole lap, but it fails 2 times in 3.</string>
     <string name="sp_cross_w">If it fails, you lose a turn and are thrown back 6 squares.</string>
