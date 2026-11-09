@@ -33,14 +33,41 @@ object Art {
     fun draw(ctx: Context, c: Canvas, name: String, r: RectF, color: Int, label: String, round: Boolean = false) {
         val bmp = bitmap(ctx, name)
         if (bmp != null) { c.drawBitmap(bmp, null, r, null); return }
-        fill.color = color
-        if (round) { c.drawOval(r, fill); c.drawOval(r, ink) }
-        else { c.drawRoundRect(r, r.width() * 0.18f, r.height() * 0.18f, fill); c.drawRoundRect(r, r.width() * 0.18f, r.height() * 0.18f, ink) }
+        // No card behind a piece (founder, Nov 8): only the cut-out and a small patch of ground in its colour.
+        val w = r.width(); val h = r.height()
         if (label.isNotEmpty()) {
-            val glyphs = label.codePointCount(0, label.length)
-            text.textSize = r.height() * (when { glyphs == 1 && label.codePointAt(0) > 0x2000 -> 0.62f; label.length <= 2 -> 0.5f; else -> 0.28f })
-            c.drawText(label, r.centerX(), r.centerY() - (text.descent() + text.ascent()) / 2, text)
+            fill.color = (color and 0x00FFFFFF) or 0x77000000
+            c.drawOval(RectF(r.left + w * 0.14f, r.bottom - h * 0.16f, r.right - w * 0.14f, r.bottom), fill)
+            text.color = color or 0xFF000000.toInt()   // emoji keep their own colours; plain signs take this one
+            text.textSize = minOf(w, h) * 0.8f
+            text.setShadowLayer(h * 0.03f, 0f, h * 0.015f, 0x99000000.toInt())
+            c.drawText(label, r.centerX(), r.bottom - h * 0.06f - text.descent(), text)
+            text.clearShadowLayer()
+            text.color = INK
+            return
         }
+        if (name == HOLE) {
+            fill.color = color or 0xFF000000.toInt()
+            val o = RectF(r.left + w * 0.08f, r.bottom - h * 0.36f, r.right - w * 0.08f, r.bottom - h * 0.02f)
+            c.drawOval(o, fill); c.drawOval(o, ink)
+            return
+        }
+        // an opened crate, box or trunk
+        fill.color = color or 0xFF000000.toInt()
+        val body = RectF(r.left + w * 0.14f, r.top + h * 0.46f, r.right - w * 0.14f, r.bottom - h * 0.04f)
+        val lid = RectF(r.left + w * 0.10f, r.top + h * 0.28f, r.right - w * 0.10f, r.top + h * 0.46f)
+        c.drawRoundRect(body, w * 0.05f, w * 0.05f, fill); c.drawRoundRect(body, w * 0.05f, w * 0.05f, ink)
+        c.drawRoundRect(lid, w * 0.05f, w * 0.05f, fill); c.drawRoundRect(lid, w * 0.05f, w * 0.05f, ink)
+    }
+
+    /** A pennant flying from the pole at r's left edge, with the traveller's number. */
+    fun pennant(c: Canvas, r: RectF, color: Int, label: String) {
+        val p = android.graphics.Path()
+        p.moveTo(r.left, r.top); p.lineTo(r.right, r.centerY()); p.lineTo(r.left, r.bottom); p.close()
+        fill.color = color or 0xFF000000.toInt()
+        c.drawPath(p, fill); c.drawPath(p, ink)
+        text.textSize = r.height() * 0.52f
+        c.drawText(label, r.left + r.width() * 0.32f, r.centerY() - (text.descent() + text.ascent()) / 2, text)
     }
 
     private val shadow = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x55301A08 }

@@ -224,9 +224,7 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
                 if (top != null) {
                     val flagFoot = project(world(tr, tc, 2.1f))
                     if (flagFoot != null) stand(c, flagFoot, top, (focal() * 0.6f / top[2]).coerceIn(dp(46f), dp(200f))) { rect ->
-                        glowFill.color = (colour and 0x00FFFFFF) or 0x66000000
-                        c.drawRoundRect(RectF(rect.left - dp(4f), rect.top - dp(4f), rect.right + dp(4f), rect.bottom + dp(4f)), dp(8f), dp(8f), glowFill)
-                        Art.draw(context, c, "banner_" + Art.CLASS[p.cls.ordinal].removePrefix("class_"), rect, colour, "${p.id}")
+                        Art.pennant(c, RectF(rect.centerX(), rect.top, rect.right + rect.width() * 0.5f, rect.bottom), colour, "${p.id}")
                     }
                     if (p.id == revealedMarco) c.drawText("☀", top[0], top[1] - 10f, hint)
                 }
