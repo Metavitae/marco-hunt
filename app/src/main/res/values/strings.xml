@@ -127,10 +127,10 @@
     <string name="map">🗺 Map</string>
     <string name="set_board">Set board</string>
     <string name="im_here">I\'m here</string>
-    <string name="board_set">Board set: the rows now run the way the camera faces.</string>
+    <string name="board_set">Board set: it is in front of you.</string>
     <string name="walk_there">Walk to the lit square, then tap I\'m here.</string>
     <string name="cam_why">The camera shows the board on the ground. Marco Hunt uses the camera only for that, and saves nothing.</string>
-    <string name="cam_hint">Point the camera at the ground. Stand on your square facing along the rows and tap Set board. Look up often and watch where you walk.</string>
+    <string name="cam_hint">Face the way you want the board and tap Set board: it appears in front of you. Look up often and watch where you walk.</string>
     <string name="cam_denied">No camera: the map board still works.</string>
     <string name="lbl_travellers">Travellers</string>
     <string name="lbl_chronicle">Chronicle</string>

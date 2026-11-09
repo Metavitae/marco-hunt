@@ -70,20 +70,36 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     override fun onSensorChanged(e: SensorEvent) {
         SensorManager.getRotationMatrixFromVector(rot, e.values)
         haveRot = true
-        if (heading.isNaN()) heading = azimuth()
+        if (heading.isNaN()) heading = headingFacingBoard()
         invalidate()
     }
     override fun onAccuracyChanged(s: Sensor?, a: Int) {}
 
     /** Compass direction the camera looks at (radians from north, clockwise). */
     fun azimuth(): Float {
-        // camera looks along device -Z; in world coordinates that is -(column 2 of R)
-        val ex = -rot[2]; val ny = -rot[5]
+        // Where the player faces: the camera's direction (device -Z, column 2 of R, negated) plus the phone's top
+        // edge (device +Y, column 1 of R). The camera alone fails when it looks at the ground near the feet: it then
+        // points down and slightly BACK toward the player, which put the board behind him (founder, POCO, Nov 8).
+        // The top edge still points away from him then; upright it points up and adds nothing.
+        val ex = -rot[2] + rot[1]; val ny = -rot[5] + rot[4]
         return atan2(ex, ny)
     }
 
-    /** Sets the board so that the rows grow in the direction the camera faces now. */
-    fun setHeadingHere() { heading = azimuth(); invalidate() }
+    /**
+     * Sets the board in front of the player: rows and columns stay square to where he faces, turned by quarter
+     * turns so that the bigger part of the board, seen from his own square, lies ahead of him.
+     */
+    fun setHeadingHere() { heading = headingFacingBoard(); invalidate() }
+
+    private fun headingFacingBoard(): Float {
+        val f = azimuth()
+        val g = game ?: return f
+        val me = g.players[humanId]
+        val mid = (g.n - 1) / 2f
+        val toCentre = atan2(mid - me.c, mid - me.r)
+        val quarter = (Math.PI / 2).toFloat()
+        return f - Math.round(toCentre / quarter) * quarter
+    }
 
     // world: x east, y north, z up; origin = the player's eye above the centre of his square
     private fun world(dr: Float, dc: Float, up: Float): FloatArray {

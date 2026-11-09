@@ -173,7 +173,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         override fun run() {
             if (!cameraOn || isDestroyed) return
             updateGuide()
-            camView?.let { it.hints = false; it.insetTop = midSlot.top; it.insetBottom = hudFrame.height - midSlot.bottom; it.insetRightTop = midSlot.top + miniMap.bottom + dp(8) }
+            camView?.let { it.hints = false; it.insetTop = midSlot.top; it.insetBottom = hudFrame.height - midSlot.bottom + dp(130); it.insetRightTop = midSlot.top + miniMap.bottom + dp(8) }
             ui.postDelayed(this, 500)
         }
     }

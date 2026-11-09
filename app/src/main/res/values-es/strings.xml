@@ -127,10 +127,10 @@
     <string name="map">🗺 Mapa</string>
     <string name="set_board">Fijar tablero</string>
     <string name="im_here">Estoy aquí</string>
-    <string name="board_set">Tablero fijado: las filas van hacia donde mira la cámara.</string>
+    <string name="board_set">Tablero fijado: está frente a ti.</string>
     <string name="walk_there">Camina a la casilla iluminada y toca Estoy aquí.</string>
     <string name="cam_why">La cámara muestra el tablero en el suelo. Marco Hunt usa la cámara solo para eso y no guarda nada.</string>
-    <string name="cam_hint">Apunta la cámara al suelo. Párate en tu casilla mirando a lo largo de las filas y toca Fijar tablero. Levanta la vista seguido y mira por dónde caminas.</string>
+    <string name="cam_hint">Mira hacia donde quieras el tablero y toca Fijar tablero: aparece frente a ti. Levanta la vista seguido y mira por dónde caminas.</string>
     <string name="cam_denied">Sin cámara: el tablero de mapa sigue funcionando.</string>
     <string name="lbl_travellers">Viajeros</string>
     <string name="lbl_chronicle">Crónica</string>
