@@ -173,6 +173,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         override fun run() {
             if (!cameraOn || isDestroyed) return
             updateGuide()
+            camView?.let { it.hints = false; it.insetTop = midSlot.top; it.insetBottom = hudFrame.height - midSlot.bottom; it.insetRightTop = midSlot.top + miniMap.bottom + dp(8) }
             ui.postDelayed(this, 500)
         }
     }
@@ -717,6 +718,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             myTurn && mode == Mode.DIVINE -> getString(R.string.pick_two)
             myTurn && mode == Mode.ATTACK -> getString(R.string.pick_target, Types.reach(me.cls))
             myTurn && cameraOn && pendingMove >= 0 -> getString(R.string.walk_there)
+            myTurn && cameraOn && arState?.ready == false -> getString(R.string.set_first, g.moveAllowance())
             myTurn -> getString(R.string.your_turn, g.moveAllowance())
             else -> status.text
         }
@@ -947,7 +949,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
         }
         val glass = 0xE0FBF3DF.toInt()
         status.background = if (on) card(glass, Art.INK, 1, 10) else null
-        status.setPadding(dp(8), if (on) dp(4) else 0, dp(8), if (on) dp(4) else 0)
+        status.setPadding(if (on) dp(8) else 0, if (on) dp(4) else 0, if (on) dp(8) else 0, if (on) dp(4) else 0)
         ticker.background = card(if (on) glass else 0xFFFBF3DF.toInt(), 0xFFC9B892.toInt(), 1, 10)
         ticker.setPadding(dp(12), dp(8), dp(12), dp(8))
         sacScroll.background = if (on) card(glass, 0xFFC9B892.toInt(), 1, 10) else null
@@ -1003,7 +1005,7 @@ class GameActivity : androidx.activity.ComponentActivity(), Game.Listener {
             1 -> { tale.say(getString(R.string.ar_mark2), 3500); diary.line(g.round, "SET BOARD corner 1") }
             else -> { camView?.squareM = st.s; tale.say(getString(R.string.ar_ready, (st.s * 100).toInt()), 2600); diary.line(g.round, "SET BOARD done, squares ${(st.s * 100).toInt()} cm") }
         }
-        camView?.invalidate()
+        refresh()
     }
 
     /** Walk mode: the player stands on the picked square and taps "I'm here"; then the move counts. */

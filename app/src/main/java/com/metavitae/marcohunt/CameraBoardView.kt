@@ -40,6 +40,10 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     var tint = 0
     /** Google AR state (8T and other certified phones). Null = sensor-only camera-lite. */
     var ar: ArState? = null
+    /** False when the screen around this view already says what to do (the game's guide line). */
+    var hints = true
+    /** Where the floating panels leave the picture free, so edge chips are never hidden: top, bottom, and top on the right side (the little map). */
+    var insetTop = 0; var insetBottom = 0; var insetRightTop = 0
     private var curR = 0f; private var curC = 0f
     private val tmp = FloatArray(4); private val out = FloatArray(4)
 
@@ -131,8 +135,8 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
         val g = game ?: return
         if (tint != 0) c.drawColor(tint)
         val a = ar
-        if (a != null && !a.tracking) { c.drawText(context.getString(R.string.ar_look), width / 2f, height / 2f, hint); return }
-        if (a != null && !a.ready) { c.drawText(context.getString(R.string.ar_mark1), width / 2f, height * 0.85f, hint); return }
+        if (a != null && !a.tracking) { if (hints) c.drawText(context.getString(R.string.ar_look), width / 2f, height / 2f, hint); return }
+        if (a != null && !a.ready) { if (hints) c.drawText(context.getString(R.string.ar_mark1), width / 2f, height * 0.85f, hint); return }
         if (a == null && !haveRot) { c.drawText("…", width / 2f, height / 2f, hint); return }
         val me = g.players[humanId]
         val pr = me.r.toFloat(); val pc = me.c.toFloat()
@@ -169,22 +173,36 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
             glow.color = 0x55E3C46A; pillar.color = 0xFFFFF2C0.toInt()
             c.drawLine(base[0], base[1], top[0], top[1], glow); c.drawLine(base[0], base[1], top[0], top[1], pillar)
         }
-        // decorations (all alike) and opened squares
+        // Everything on the board stands perpendicular to the ground and faces this phone's player, never
+        // side-on (founder, Nov 8). Each phone draws this for itself. Nearest pieces are drawn last.
+        val pieces = ArrayList<Pair<Float, () -> Unit>>()
+        fun piece(wr: Float, wc: Float, draw: (RectF) -> Unit) {
+            val base = project(world(wr - pr, wc - pc, 0f)) ?: return
+            val w = pieceWidth(base[2])
+            if (base[0] < -w || base[0] > width + w || base[1] < -w || base[1] > height + 2 * w) return
+            val top = project(world(wr - pr, wc - pc, w * base[2] / focal()))
+            pieces.add(base[2] to { stand(c, base, top, w, draw) })
+        }
+        for ((k, lm) in g.landmarks.withIndex()) piece(lm[0].toFloat(), lm[1].toFloat()) { Art.draw(context, c, Art.LANDMARK[k], it, 0xDDE3C46A.toInt(), Art.LANDMARK_LABEL[k]) }
+        for (m in g.marks) piece(m[0].toFloat(), m[1].toFloat()) { Art.draw(context, c, Art.MARK[m[2]], it, 0xCC7FB8A6.toInt(), Art.MARK_LABEL[m[2]], round = true) }
+        // decorations (all alike until someone lands on them) and opened squares
         for (r in r0..r1) for (cc in c0..c1) {
             val i = g.idx(r, cc)
             if (!g.decorated(i)) continue
-            val p = project(world(r - pr, cc - pc, 0.05f)) ?: continue
-            val size = (focal() * 0.35f * squareM / p[2]).coerceIn(dp(22f), 220f)
-            val rect = RectF(p[0] - size / 2, p[1] - size, p[0] + size / 2, p[1])
-            if (!g.opened[i]) Art.draw(context, c, Art.DECO[(i * 7 + 3) % 4], rect, 0xCCA0815A.toInt(), Art.DECO_LABEL[(i * 7 + 3) % 4])
-            else {
-                val ct = g.content[i]
-                val cr = if (ct.isPeril) Art.creatureFor(ct, i) else null
-                if (cr != null && Art.bitmap(context, cr) != null) Art.draw(context, c, cr, rect, 0, "")
-                else Art.draw(context, c, if (ct.isPeril) Art.HOLE else Art.CONTAINER[i % 3], rect, if (ct.isPeril) 0xCC402A1A.toInt() else 0xCCC9A227.toInt(), "")
+            piece(r.toFloat(), cc.toFloat()) { rect ->
+                if (!g.opened[i]) Art.draw(context, c, Art.DECO[(i * 7 + 3) % 4], rect, 0xCCA0815A.toInt(), Art.DECO_LABEL[(i * 7 + 3) % 4])
+                else {
+                    val ct = g.content[i]
+                    val cr = if (ct.isPeril) Art.creatureFor(ct, i) else null
+                    when {
+                        ct == com.metavitae.marcohunt.engine.Types.Content.ORACLE -> Art.draw(context, c, Art.ORACLE, rect, Art.GOLD, "☉", round = true)
+                        cr != null && Art.bitmap(context, cr) != null -> Art.draw(context, c, cr, rect, 0, "")
+                        else -> Art.draw(context, c, if (ct.isPeril) Art.HOLE else Art.CONTAINER[i % 3], rect, if (ct.isPeril) 0xCC402A1A.toInt() else 0xCCC9A227.toInt(), "")
+                    }
+                }
             }
         }
-        // travellers: a class banner on a tall pole over each square (Marco's looks like anyone's).
+        // travellers: a standing piece on the square, and a pole with a banner so they can be spotted from far away.
         // Founder, Nov 7: "the poles became invisible at a distance" -> poles and flags never get smaller
         // than a thumb's width, and travellers outside the picture show as a chip at the edge, pointing to them.
         for (p in g.players) {
@@ -194,18 +212,62 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
             val base = project(world(tr, tc, 0f))
             val top = project(world(tr, tc, 2.6f))
             val colour = Art.CLASS_COLOR[p.cls.ordinal]
-            val onScreen = base != null && top != null && top[0] in 0f..width.toFloat() && top[1] in 0f..height.toFloat()
-            if (!onScreen) { edgeChip(c, p.id, colour, top ?: base); continue }
-            pole.strokeWidth = (focal() * 0.06f / base!![2]).coerceIn(dp(5f), 40f)
-            poleEdge.strokeWidth = pole.strokeWidth + dp(3f)
-            c.drawLine(base[0], base[1], top!![0], top[1], poleEdge); c.drawLine(base[0], base[1], top[0], top[1], pole)
-            val w = (focal() * 0.6f / top[2]).coerceIn(dp(46f), 280f)
-            val flag = RectF(top[0], top[1], top[0] + w, top[1] + w * 0.62f)
-            glowFill.color = (colour and 0x00FFFFFF) or 0x66000000
-            c.drawRoundRect(RectF(flag.left - dp(4f), flag.top - dp(4f), flag.right + dp(4f), flag.bottom + dp(4f)), dp(8f), dp(8f), glowFill)
-            Art.draw(context, c, "banner_" + Art.CLASS[p.cls.ordinal].removePrefix("class_"), flag, colour, "${p.id}")
-            if (p.id == revealedMarco) c.drawText("☀", top[0], top[1] - 10f, hint)
+            fun inView(q: FloatArray?) = q != null && q[0] in 0f..width.toFloat() && q[1] in 0f..height.toFloat()
+            if (!inView(base) && !inView(top)) { edgeChip(c, p.id, colour, top ?: base); continue }
+            val depth = base?.get(2) ?: top!![2]
+            pieces.add(depth to {
+                if (base != null && top != null) {
+                    pole.strokeWidth = (focal() * 0.06f / base[2]).coerceIn(dp(5f), 40f)
+                    poleEdge.strokeWidth = pole.strokeWidth + dp(3f)
+                    c.drawLine(base[0], base[1], top[0], top[1], poleEdge); c.drawLine(base[0], base[1], top[0], top[1], pole)
+                }
+                if (top != null) {
+                    val flagFoot = project(world(tr, tc, 2.1f))
+                    if (flagFoot != null) stand(c, flagFoot, top, (focal() * 0.6f / top[2]).coerceIn(dp(46f), dp(200f))) { rect ->
+                        glowFill.color = (colour and 0x00FFFFFF) or 0x66000000
+                        c.drawRoundRect(RectF(rect.left - dp(4f), rect.top - dp(4f), rect.right + dp(4f), rect.bottom + dp(4f)), dp(8f), dp(8f), glowFill)
+                        Art.draw(context, c, "banner_" + Art.CLASS[p.cls.ordinal].removePrefix("class_"), rect, colour, "${p.id}")
+                    }
+                    if (p.id == revealedMarco) c.drawText("☀", top[0], top[1] - 10f, hint)
+                }
+                if (base != null) {
+                    val w = pieceWidth(base[2])
+                    stand(c, base, project(world(tr, tc, w * 1.3f * base[2] / focal())), w) { Art.pawn(c, it, colour, "${p.id}", 0) }
+                }
+            })
         }
+        pieces.sortByDescending { it.first }
+        for (d in pieces) d.second()
+    }
+
+    /** How wide a standing piece looks at this depth: about a square, never too small to see or big enough to fill the screen. */
+    private fun pieceWidth(depth: Float) = (focal() * (squareM * 0.85f).coerceIn(0.25f, 1f) / depth).coerceIn(dp(24f), dp(260f))
+
+    private val standMatrix = android.graphics.Matrix()
+
+    /**
+     * Draws a piece upright: its foot on the ground point, its height along the true vertical of the world as the
+     * camera sees it (so tilting the phone doesn't tilt the piece), its face square to the viewer (so never side-on).
+     * Seen from above the height would shrink to nothing, so it keeps at least 70% of its width and stays readable.
+     */
+    private fun stand(c: Canvas, foot: FloatArray, top: FloatArray?, w: Float, draw: (RectF) -> Unit) {
+        var ux = 0f; var uy = -1f; var len = w
+        if (top != null) {
+            val dx = top[0] - foot[0]; val dy = top[1] - foot[1]
+            val l = Math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
+            if (l >= 1f) { ux = dx / l; uy = dy / l; len = l }
+        }
+        len = len.coerceAtLeast(w * 0.7f)
+        val rx = -uy; val ry = ux // to the piece's right, seen by the viewer
+        val hx = rx * w / 2; val hy = ry * w / 2
+        val src = floatArrayOf(0f, 0f, w, 0f, w, len, 0f, len)
+        val dst = floatArrayOf(
+            foot[0] - hx + ux * len, foot[1] - hy + uy * len, foot[0] + hx + ux * len, foot[1] + hy + uy * len,
+            foot[0] + hx, foot[1] + hy, foot[0] - hx, foot[1] - hy)
+        standMatrix.setPolyToPoly(src, 0, dst, 0, 4)
+        c.save(); c.concat(standMatrix)
+        draw(RectF(0f, 0f, w, len))
+        c.restore()
     }
 
     private fun dp(v: Float) = v * resources.displayMetrics.density
@@ -218,10 +280,13 @@ class CameraBoardView(ctx: Context) : View(ctx), SensorEventListener {
     private fun edgeChip(c: Canvas, id: Int, colour: Int, at: FloatArray?) {
         val m = dp(30f)
         val cx: Float; val cy: Float; val arrow: String
-        if (at == null) { cx = width / 2f + (id - 2) * dp(64f); cy = height - dp(96f); arrow = "↓" }
+        if (at == null) { cx = width / 2f + (id - 2) * dp(64f); cy = height - maxOf(dp(96f), insetBottom + dp(22f)); arrow = "↓" }
         else {
-            cx = at[0].coerceIn(m, width - m); cy = at[1].coerceIn(m + dp(56f), height - dp(96f))
-            arrow = when { at[0] < m -> "←"; at[0] > width - m -> "→"; at[1] < m + dp(56f) -> "↑"; else -> "↓" }
+            cx = at[0].coerceIn(m, width - m)
+            val minY = maxOf(m + dp(56f), (if (cx > width - dp(160f)) insetRightTop else insetTop) + dp(22f))
+            val maxY = height - maxOf(dp(96f), insetBottom + dp(22f))
+            cy = at[1].coerceIn(minY, maxY)
+            arrow = when { at[0] < m -> "←"; at[0] > width - m -> "→"; at[1] < minY -> "↑"; else -> "↓" }
         }
         glowFill.color = colour
         val r = RectF(cx - dp(30f), cy - dp(18f), cx + dp(30f), cy + dp(18f))

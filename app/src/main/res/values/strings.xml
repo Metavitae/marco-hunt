@@ -245,7 +245,7 @@
     <string name="tr_title">The others\' turns</string>
     <string name="tr">Now the other travellers walk, one by one. The banner on the map says what each one did.</string>
     <string name="td_title">Decorations</string>
-    <string name="td">Squares with a picture hide something: a helper, a danger, or nothing. Step on one to open it. Long-press any square to read it.</string>
+    <string name="td">Decorations (cactus, jar, rock, wheat) all look alike: one may hide a helper, a danger, the Oracle or nothing. You only find out by stepping on it. The gold tiles and round marks are places on the map: they hide nothing, and the Oracle\'s riddles talk about them. Long-press any square to read it.</string>
     <string name="ta_title">Only one fits</string>
     <string name="ta">Only %1$s fits your last signal. If earlier signals agree, tap Accuse and pick them. You get one try, so be sure.</string>
     <string name="cam_safety">Look up often and watch where you walk.</string>
@@ -257,4 +257,5 @@
     <string name="guide_walk">You: row %1$d, column %2$d → Go to: row %3$d, column %4$d</string>
     <string name="guide_lite">Your square: row %1$d, column %2$d. The board hangs around you.</string>
     <string name="walked_one">walked 1 square</string>
+    <string name="set_first">You rolled %1$d. Set the board first.</string>
 </resources>

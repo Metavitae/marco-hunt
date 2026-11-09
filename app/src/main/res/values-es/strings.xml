@@ -245,7 +245,7 @@
     <string name="tr_title">Los turnos de los demás</string>
     <string name="tr">Ahora los otros viajeros caminan, uno por uno. El letrero sobre el mapa dice qué hizo cada uno.</string>
     <string name="td_title">Decoraciones</string>
-    <string name="td">Las casillas con dibujo esconden algo: una ayuda, un peligro o nada. Párate en una para abrirla. Deja presionada cualquier casilla para leerla.</string>
+    <string name="td">Las decoraciones (cactus, jarra, roca, trigo) se ven todas iguales: una puede esconder un ayudante, un peligro, el Oráculo o nada. Solo lo sabes al pisarla. Las losetas doradas y las marcas redondas son lugares del mapa: no esconden nada, y los acertijos del Oráculo hablan de ellas. Mantén presionada una casilla para leerla.</string>
     <string name="ta_title">Solo uno encaja</string>
     <string name="ta">Solo %1$s encaja con tu última señal. Si las anteriores coinciden, toca Acusar y elígelo. Tienes un solo intento, así que asegúrate.</string>
     <string name="cam_safety">Levanta la vista seguido y fíjate por dónde caminas.</string>
@@ -257,4 +257,5 @@
     <string name="guide_walk">Tú: fila %1$d, columna %2$d → Ve a: fila %3$d, columna %4$d</string>
     <string name="guide_lite">Tu casilla: fila %1$d, columna %2$d. El tablero cuelga a tu alrededor.</string>
     <string name="walked_one">caminó 1 casilla</string>
+    <string name="set_first">Sacaste %1$d. Primero fija el tablero.</string>
 </resources>
